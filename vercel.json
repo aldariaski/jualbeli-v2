@@ -1,11 +1,11 @@
 {
     "version": 2,
     "builds": [{
-        "src": "jualbeli_backend/bin/jualbeli_backend.dart",
+        "src": "jualbeli_backend/",
         "use": "vercel-dart"
     }],
     "routes": [{
         "src": "/(.*)",
-        "dest": "jualbeli_backend/bin/jualbeli_backend.dart"
+        "dest": "jualbeli_backend/t"
     }]
 }
