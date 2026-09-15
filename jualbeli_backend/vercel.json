@@ -1,7 +1,7 @@
 {
     "version": 2,
     "builds": [{
-        "src": "bin/jualbeli_backend.dart",
+        "src": ".",
         "use": "vercel-dart",
         "config": {
             "distDir": "."
@@ -9,6 +9,5 @@
     }],
     "routes": [{
         "src": "/(.*)",
-        "dest": "bin/jualbeli_backend.dart?path=$1"
-    }]
+        "dest": "."
 }
