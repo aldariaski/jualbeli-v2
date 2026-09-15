@@ -6,8 +6,7 @@ class CartRepository {
 
   CartRepository({
     DatabaseConnection? database,
-  }) : _database =
-            database ?? DatabaseConnection.instance;
+  }) : _database = database ?? DatabaseConnection.instance;
 
   Future<List<CartItem>> findByUser(
     String userEmail,
@@ -27,29 +26,27 @@ class CartRepository {
       FROM CartItems c
       INNER JOIN Products p
         ON c.ProductId = p.Id
-      WHERE c.UserEmail = @userEmail
+      WHERE c.UserEmail = ?
       ORDER BY c.Id DESC
     ''';
 
-    final result = await _database.query(
-      sql,
-      parameters: {
-        'userEmail': userEmail,
-      },
-    );
+    final result = await _database.query(sql, [userEmail]);
 
-    return result.rows.map((row) {
+    return result.map((row) {
+      // row.fields can be accessed using column names or index in mysql1
+      final fields = row.toColumnMap();
+
       return CartItem(
-        id: row['Id'] as int,
-        userEmail: row['UserEmail'] as String,
-        productId: row['ProductId'] as int,
-        quantity: row['Quantity'] as int,
-        productName: row['ProductName'] as String,
-        price: (row['Price'] as num).toDouble(),
-        image: row['Image'] as String?,
-        category: row['Category'] as String,
-        sellerName: row['SellerName'] as String,
-        sellerEmail: row['SellerEmail'] as String,
+        id: fields['Id'] as int,
+        userEmail: fields['UserEmail'] as String,
+        productId: fields['ProductId'] as int,
+        quantity: fields['Quantity'] as int,
+        productName: fields['ProductName'] as String,
+        price: (fields['Price'] as num).toDouble(),
+        image: fields['Image'] as String?,
+        category: fields['Category'] as String,
+        sellerName: fields['SellerName'] as String,
+        sellerEmail: fields['SellerEmail'] as String,
       );
     }).toList();
   }
@@ -58,41 +55,20 @@ class CartRepository {
     String userEmail,
     int productId,
   ) async {
+    // Replaced SQL Server IF EXISTS / ELSE with MySQL ON DUPLICATE KEY UPDATE.
+    // Assumes (UserEmail, ProductId) is a UNIQUE index / composite key in MySQL.
     const sql = '''
-      IF EXISTS (
-        SELECT 1
-        FROM CartItems
-        WHERE UserEmail = @userEmail
-          AND ProductId = @productId
+      INSERT INTO CartItems (
+        UserEmail,
+        ProductId,
+        Quantity
       )
-      BEGIN
-        UPDATE CartItems
-        SET Quantity = Quantity + 1
-        WHERE UserEmail = @userEmail
-          AND ProductId = @productId
-      END
-      ELSE
-      BEGIN
-        INSERT INTO CartItems (
-          UserEmail,
-          ProductId,
-          Quantity
-        )
-        VALUES (
-          @userEmail,
-          @productId,
-          1
-        )
-      END
+      VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE
+        Quantity = Quantity + 1
     ''';
 
-    await _database.execute(
-      sql,
-      parameters: {
-        'userEmail': userEmail,
-        'productId': productId,
-      },
-    );
+    await _database.execute(sql, [userEmail, productId]);
   }
 
   Future<void> updateQuantity(
@@ -110,19 +86,12 @@ class CartRepository {
 
     const sql = '''
       UPDATE CartItems
-      SET Quantity = @quantity
-      WHERE UserEmail = @userEmail
-        AND ProductId = @productId
+      SET Quantity = ?
+      WHERE UserEmail = ?
+        AND ProductId = ?
     ''';
 
-    await _database.execute(
-      sql,
-      parameters: {
-        'userEmail': userEmail,
-        'productId': productId,
-        'quantity': quantity,
-      },
-    );
+    await _database.execute(sql, [quantity, userEmail, productId]);
   }
 
   Future<void> remove(
@@ -131,17 +100,11 @@ class CartRepository {
   ) async {
     const sql = '''
       DELETE FROM CartItems
-      WHERE UserEmail = @userEmail
-        AND ProductId = @productId
+      WHERE UserEmail = ?
+        AND ProductId = ?
     ''';
 
-    await _database.execute(
-      sql,
-      parameters: {
-        'userEmail': userEmail,
-        'productId': productId,
-      },
-    );
+    await _database.execute(sql, [userEmail, productId]);
   }
 
   Future<void> clear(
@@ -149,14 +112,9 @@ class CartRepository {
   ) async {
     const sql = '''
       DELETE FROM CartItems
-      WHERE UserEmail = @userEmail
+      WHERE UserEmail = ?
     ''';
 
-    await _database.execute(
-      sql,
-      parameters: {
-        'userEmail': userEmail,
-      },
-    );
+    await _database.execute(sql, [userEmail]);
   }
 }

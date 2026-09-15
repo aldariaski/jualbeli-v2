@@ -3,169 +3,143 @@ import '../database/database.dart';
 class OrderRepository {
   OrderRepository._();
 
-  static final OrderRepository instance =
-      OrderRepository._();
+  static final OrderRepository instance = OrderRepository._();
 
-  final DatabaseConnection _db =
-      DatabaseConnection.instance;
+  final DatabaseConnection _db = DatabaseConnection.instance;
 
   Future<int> createOrder({
-      required String email,
-    }) async {
-      // ------------------------------------------------------------
-      // Check that the cart is not empty
-      // ------------------------------------------------------------
+    required String email,
+  }) async {
+    // ------------------------------------------------------------
+    // Check that the cart is not empty
+    // ------------------------------------------------------------
 
-      final cartResult = await _db.query(
-        '''
-        SELECT
-            c.ProductId,
-            c.Quantity,
-            p.price
-        FROM CartItems c
-        INNER JOIN Products p
-            ON p.Id = c.ProductId
-        WHERE c.UserEmail = @email
-        ''',
-        parameters: {
-          'email': email,
-        },
+    final cartResult = await _db.query(
+      '''
+      SELECT
+          c.ProductId,
+          c.Quantity,
+          p.price
+      FROM CartItems c
+      INNER JOIN Products p
+          ON p.Id = c.ProductId
+      WHERE c.UserEmail = ?
+      ''',
+      [email],
+    );
+
+    if (cartResult.isEmpty) {
+      throw Exception(
+        'Cart is empty.',
       );
-
-      if (cartResult.rows.isEmpty) {
-        throw Exception(
-          'Cart is empty.',
-        );
-      }
-
-      // ------------------------------------------------------------
-      // Calculate total amount
-      // ------------------------------------------------------------
-
-      final totalResult = await _db.query(
-        '''
-        SELECT
-            SUM(
-                CAST(p.price AS DECIMAL(30,2))
-                * c.quantity
-            ) AS totalAmount
-        FROM CartItems c
-        INNER JOIN Products p
-            ON p.Id = c.ProductId
-        WHERE c.UserEmail = @email
-        ''',
-        parameters: {
-          'email': email,
-        },
-      );
-
-      if (totalResult.rows.isEmpty) {
-        throw Exception(
-          'Failed to calculate Orders total.',
-        );
-      }
-
-      final totalAmount =
-          totalResult.rows.first['totalAmount'];
-
-      if (totalAmount == null) {
-        throw Exception(
-          'Orders total is null.',
-        );
-      }
-
-      // ------------------------------------------------------------
-      // Create Orders
-      // ------------------------------------------------------------
-
-      final OrderResult = await _db.query(
-        '''
-        INSERT INTO Orders (
-            email,
-            total_amount,
-            status
-        )
-        OUTPUT INSERTED.id AS OrderId
-        VALUES (
-            @email,
-            @totalAmount,
-            'Pending'
-        );
-        ''',
-        parameters: {
-          'email': email,
-          'totalAmount': totalAmount,
-        },
-      );
-
-      if (OrderResult.rows.isEmpty) {
-        throw Exception(
-          'Failed to create Orders.',
-        );
-      }
-
-      final OrderId =
-          OrderResult.rows.first['OrderId'];
-
-      if (OrderId == null) {
-        throw Exception(
-          'Orders ID was not returned.',
-        );
-      }
-
-      final parsedOrderId =
-          int.parse(OrderId.toString());
-
-      // ------------------------------------------------------------
-      // Create OrderItems
-      // ------------------------------------------------------------
-
-      await _db.execute(
-        '''
-        INSERT INTO OrderItems (
-            order_id,
-            product_id,
-            quantity,
-            price
-        )
-        SELECT
-            @OrderId,
-            c.ProductId,
-            c.quantity,
-            p.price
-        FROM CartItems c
-        INNER JOIN Products p
-            ON p.Id = c.ProductId
-        WHERE c.UserEmail = @email;
-        ''',
-        parameters: {
-          'OrderId': parsedOrderId,
-          'email': email,
-        },
-      );
-
-      // ------------------------------------------------------------
-      // Clear cart
-      // ------------------------------------------------------------
-
-      await _db.execute(
-        '''
-        DELETE FROM CartItems
-        WHERE UserEmail = @email;
-        ''',
-        parameters: {
-          'email': email,
-        },
-      );
-
-      // ------------------------------------------------------------
-      // Return Orders ID
-      // ------------------------------------------------------------
-
-      return parsedOrderId;
     }
 
-    Future<List<Map<String, dynamic>>> getOrdersForUser(
+    // ------------------------------------------------------------
+    // Calculate total amount
+    // ------------------------------------------------------------
+
+    final totalResult = await _db.query(
+      '''
+      SELECT
+          SUM(
+              CAST(p.price AS DECIMAL(30,2))
+              * c.quantity
+          ) AS totalAmount
+      FROM CartItems c
+      INNER JOIN Products p
+          ON p.Id = c.ProductId
+      WHERE c.UserEmail = ?
+      ''',
+      [email],
+    );
+
+    if (totalResult.isEmpty) {
+      throw Exception(
+        'Failed to calculate Orders total.',
+      );
+    }
+
+    final totalAmount = totalResult.first.toColumnMap()['totalAmount'];
+
+    if (totalAmount == null) {
+      throw Exception(
+        'Orders total is null.',
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Create Orders
+    // ------------------------------------------------------------
+
+    final insertResult = await _db.execute(
+      '''
+      INSERT INTO Orders (
+          email,
+          total_amount,
+          status
+      )
+      VALUES (
+          ?,
+          ?,
+          'Pending'
+      )
+      ''',
+      [email, totalAmount],
+    );
+
+    final orderId = insertResult.insertId;
+
+    if (orderId == null || orderId == 0) {
+      throw Exception(
+        'Orders ID was not returned.',
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Create OrderItems
+    // ------------------------------------------------------------
+
+    await _db.execute(
+      '''
+      INSERT INTO OrderItems (
+          order_id,
+          product_id,
+          quantity,
+          price
+      )
+      SELECT
+          ?,
+          c.ProductId,
+          c.quantity,
+          p.price
+      FROM CartItems c
+      INNER JOIN Products p
+          ON p.Id = c.ProductId
+      WHERE c.UserEmail = ?;
+      ''',
+      [orderId, email],
+    );
+
+    // ------------------------------------------------------------
+    // Clear cart
+    // ------------------------------------------------------------
+
+    await _db.execute(
+      '''
+      DELETE FROM CartItems
+      WHERE UserEmail = ?;
+      ''',
+      [email],
+    );
+
+    // ------------------------------------------------------------
+    // Return Orders ID
+    // ------------------------------------------------------------
+
+    return orderId;
+  }
+
+  Future<List<Map<String, dynamic>>> getOrdersForUser(
     String email,
   ) async {
     final result = await _db.query(
@@ -177,21 +151,21 @@ class OrderRepository {
           status,
           created_at
       FROM Orders
-      WHERE email = @email
+      WHERE email = ?
       ORDER BY created_at DESC, id DESC
       ''',
-      parameters: {
-        'email': email,
-      },
+      [email],
     );
 
-    return result.rows.map((row) {
+    return result.map((row) {
+      final fields = row.toColumnMap();
+
       return {
-        'id': int.parse(row['id'].toString()),
-        'email': row['email']?.toString() ?? '',
-        'totalAmount': _number(row['total_amount']),
-        'status': row['status']?.toString() ?? '',
-        'createdAt': row['created_at']?.toString(),
+        'id': int.parse(fields['id'].toString()),
+        'email': fields['email']?.toString() ?? '',
+        'totalAmount': _number(fields['total_amount']),
+        'status': fields['status']?.toString() ?? '',
+        'createdAt': fields['created_at']?.toString(),
       };
     }).toList();
   }
@@ -209,16 +183,13 @@ class OrderRepository {
           status,
           created_at
       FROM Orders
-      WHERE id = @orderId
-        AND email = @email
+      WHERE id = ?
+        AND email = ?
       ''',
-      parameters: {
-        'orderId': orderId,
-        'email': email,
-      },
+      [orderId, email],
     );
 
-    if (orderResult.rows.isEmpty) {
+    if (orderResult.isEmpty) {
       return null;
     }
 
@@ -235,15 +206,13 @@ class OrderRepository {
       FROM OrderItems oi
       LEFT JOIN Products p
           ON p.Id = oi.product_id
-      WHERE oi.order_id = @orderId
+      WHERE oi.order_id = ?
       ORDER BY oi.id ASC
       ''',
-      parameters: {
-        'orderId': orderId,
-      },
+      [orderId],
     );
 
-    final order = orderResult.rows.first;
+    final order = orderResult.first.toColumnMap();
 
     return {
       'id': int.parse(order['id'].toString()),
@@ -251,15 +220,17 @@ class OrderRepository {
       'totalAmount': _number(order['total_amount']),
       'status': order['status']?.toString() ?? '',
       'createdAt': order['created_at']?.toString(),
-      'items': itemResult.rows.map((row) {
+      'items': itemResult.map((row) {
+        final fields = row.toColumnMap();
+
         return {
-          'id': int.parse(row['id'].toString()),
-          'orderId': int.parse(row['order_id'].toString()),
-          'productId': int.parse(row['product_id'].toString()),
-          'quantity': int.parse(row['quantity'].toString()),
-          'price': _number(row['price']),
-          'name': row['Name']?.toString() ?? 'Product unavailable',
-          'image': row['Image']?.toString(),
+          'id': int.parse(fields['id'].toString()),
+          'orderId': int.parse(fields['order_id'].toString()),
+          'productId': int.parse(fields['product_id'].toString()),
+          'quantity': int.parse(fields['quantity'].toString()),
+          'price': _number(fields['price']),
+          'name': fields['Name']?.toString() ?? 'Product unavailable',
+          'image': fields['Image']?.toString(),
         };
       }).toList(),
     };

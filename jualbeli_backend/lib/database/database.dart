@@ -1,14 +1,13 @@
 import 'dart:async';
 
-import 'package:mssql/mssql.dart';
+import 'package:mysql1/mysql1.dart';
 
 class DatabaseConnection {
   DatabaseConnection._();
 
-  static final DatabaseConnection instance =
-      DatabaseConnection._();
+  static final DatabaseConnection instance = DatabaseConnection._();
 
-  MssqlConnection? _connection;
+  MySqlConnection? _connection;
 
   String? _host;
   int? _port;
@@ -18,8 +17,7 @@ class DatabaseConnection {
 
   bool _connecting = false;
 
-  Future<void> _operationQueue =
-      Future.value();
+  Future<void> _operationQueue = Future.value();
 
   Future<void> connect({
     required String host,
@@ -38,8 +36,7 @@ class DatabaseConnection {
   }
 
   Future<void> _connect() async {
-    if (_connection != null &&
-        _connection!.isOpen) {
+    if (_connection != null) {
       return;
     }
 
@@ -55,49 +52,34 @@ class DatabaseConnection {
 
     _connecting = true;
 
-    print('Connecting to SQL Server...');
+    print('Connecting to MySQL...');
     print('Host: $_host');
     print('Port: $_port');
     print('Database: $_databaseName');
 
     try {
-      _connection =
-          await MssqlConnection.connect(
+      final settings = ConnectionSettings(
         host: _host!,
         port: _port!,
         user: _username!,
         password: _password!,
-        database: _databaseName!,
-        encrypt: false,
-        trustServerCertificate: true,
+        db: _databaseName!,
         timeout: const Duration(seconds: 30),
       );
 
-      print(
-        '========== SQL SERVER CONNECTED ==========',
-      );
-      print(
-        'Database connection successful!',
-      );
-      print(
-        '==========================================',
-      );
+      _connection = await MySqlConnection.connect(settings);
+
+      print('========== MYSQL CONNECTED ==========');
+      print('Database connection successful!');
+      print('=====================================');
     } catch (e, stackTrace) {
       _connection = null;
 
-      print(
-        '========== SQL SERVER ERROR ==========',
-      );
+      print('========== MYSQL ERROR ==========');
       print('Error: $e');
-      print(
-        'Type: ${e.runtimeType}',
-      );
-      print(
-        'Stack trace: $stackTrace',
-      );
-      print(
-        '======================================',
-      );
+      print('Type: ${e.runtimeType}');
+      print('Stack trace: $stackTrace');
+      print('=================================');
 
       rethrow;
     } finally {
@@ -108,14 +90,11 @@ class DatabaseConnection {
   Future<T> _withLock<T>(
     Future<T> Function() operation,
   ) {
-    final previous =
-        _operationQueue;
+    final previous = _operationQueue;
 
-    final completer =
-        Completer<void>();
+    final completer = Completer<void>();
 
-    _operationQueue =
-        completer.future;
+    _operationQueue = completer.future;
 
     return previous.then((_) async {
       try {
@@ -128,123 +107,80 @@ class DatabaseConnection {
     });
   }
 
-  Future<MssqlResult> query(
-    String sql, {
-    Map<String, Object?> parameters =
-        const {},
-  }) {
+  Future<Results> query(
+    String sql, [
+    List<Object?>? positionalParams,
+  ]) {
     return _withLock(() async {
       await _connect();
 
       try {
-        return await _connection!.query(
-          sql,
-          parameters,
-        );
+        return await _connection!.query(sql, positionalParams);
       } catch (e) {
-        print(
-          'Database query failed: $e',
-        );
+        print('Database query failed: $e');
 
-        // The connection may have been
-        // closed by SQL Server / the TLS
-        // socket.
         _connection = null;
 
-        // Reconnect and retry once.
         await _connect();
 
-        return await _connection!.query(
-          sql,
-          parameters,
-        );
+        return await _connection!.query(sql, positionalParams);
       }
     });
   }
 
-  Future<int> execute(
-    String sql, {
-    Map<String, Object?> parameters =
-        const {},
-  }) {
+  Future<Results> execute(
+    String sql, [
+    List<Object?>? positionalParams,
+  ]) {
+    return query(sql, positionalParams);
+  }
+
+  Future<T> transaction<T>(
+    Future<T> Function(MySqlConnection connection) operation,
+  ) async {
     return _withLock(() async {
       await _connect();
 
       try {
-        return await _connection!.execute(
-          sql,
-          parameters,
-        );
+        return await _connection!.transaction((ctx) async {
+          return await operation(_connection!);
+        }) as T;
       } catch (e) {
-        print(
-          'Database execute failed: $e',
-        );
-
-        _connection = null;
-
-        // Reconnect and retry once.
-        await _connect();
-
-        return await _connection!.execute(
-          sql,
-          parameters,
-        );
+        print('Database transaction failed: $e');
+        rethrow;
       }
     });
   }
-
-      Future<T> transaction<T>(
-      Future<T> Function(MssqlConnection connection) operation,
-    ) async {
-      return _withLock(() async {
-        await _connect();
-
-        try {
-          await _connection!.beginTransaction();
-
-          try {
-            final result =
-                await operation(_connection!);
-
-            await _connection!.commitTransaction();
-
-            return result;
-          } catch (e) {
-            try {
-              await _connection!.rollbackTransaction();
-            } catch (rollbackError) {
-              print(
-                'Database rollback failed: $rollbackError',
-              );
-            }
-
-            rethrow;
-          }
-        } catch (e) {
-          print(
-            'Database transaction failed: $e',
-          );
-
-          rethrow;
-        }
-      });
-    }
 
   Future<void> close() async {
-    final connection =
-        _connection;
+    final connection = _connection;
 
     _connection = null;
 
-    if (connection != null &&
-        connection.isOpen) {
+    if (connection != null) {
       try {
         await connection.close();
       } catch (e) {
-        print(
-          'Database close error: $e',
-        );
+        print('Database close error: $e');
       }
     }
+  }
+}
+
+// ====================================================================
+// ResultRow Extension (Converts mysql1 ResultRow to a Column Name Map)
+// ====================================================================
+extension ResultRowMapExtension on ResultRow {
+  Map<String, dynamic> toColumnMap() {
+    final map = <String, dynamic>{};
+    if (fields != null) {
+      for (var i = 0; i < fields!.length; i++) {
+        final name = fields![i].name;
+        if (name != null) {
+          map[name] = this[i];
+        }
+      }
+    }
+    return map;
   }
 }

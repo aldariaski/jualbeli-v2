@@ -1,4 +1,3 @@
-
 import '../database/database.dart';
 import '../models/user.dart';
 
@@ -18,30 +17,23 @@ class UserRepository {
         PasswordHash,
         CreatedAt
       FROM Users
-      WHERE Email = @email
+      WHERE Email = ?
     ''';
 
-    final result = await _database.query(
-      sql,
-      parameters: {
-        'email': email,
-      },
-    );
+    final result = await _database.query(sql, [email]);
 
-    final rows = result.rows;
-
-    if (rows.isEmpty) {
+    if (result.isEmpty) {
       return null;
     }
 
-    final row = rows.first;
+    final fields = result.first.toColumnMap();
 
     return User.fromMap({
-      'Id': row['Id'],
-      'Name': row['Name'],
-      'Email': row['Email'],
-      'PasswordHash': row['PasswordHash'],
-      'CreatedAt': row['CreatedAt'],
+      'Id': fields['Id'],
+      'Name': fields['Name'],
+      'Email': fields['Email'],
+      'PasswordHash': fields['PasswordHash'],
+      'CreatedAt': fields['CreatedAt'],
     });
   }
 
@@ -56,42 +48,27 @@ class UserRepository {
         Email,
         PasswordHash
       )
-      OUTPUT
-        INSERTED.Id,
-        INSERTED.Name,
-        INSERTED.Email,
-        INSERTED.PasswordHash,
-        INSERTED.CreatedAt
-      VALUES (
-        @name,
-        @email,
-        @passwordHash
-      )
+      VALUES (?, ?, ?)
     ''';
 
-    final result = await _database.query(
-      sql,
-      parameters: {
-        'name': name,
-        'email': email,
-        'passwordHash': passwordHash,
-      },
-    );
+    final result = await _database.execute(sql, [
+      name,
+      email,
+      passwordHash,
+    ]);
 
-    final rows = result.rows;
+    final insertedId = result.insertId;
 
-    if (rows.isEmpty) {
+    if (insertedId == null || insertedId == 0) {
       throw Exception('Failed to create user.');
     }
 
-    final row = rows.first;
+    final newUser = await findByEmail(email);
 
-    return User.fromMap({
-      'Id': row['Id'],
-      'Name': row['Name'],
-      'Email': row['Email'],
-      'PasswordHash': row['PasswordHash'],
-      'CreatedAt': row['CreatedAt'],
-    });
+    if (newUser == null) {
+      throw Exception('Failed to fetch newly created user.');
+    }
+
+    return newUser;
   }
 }

@@ -8,76 +8,50 @@ class ProductRepository {
     DatabaseConnection? database,
   }) : _database = database ?? DatabaseConnection.instance;
 
-    Future<Product> createProduct({
-      required String name,
-      required double price,
-      String? image,
-      required String category,
-      required String sellerName,
-      required String sellerEmail,
-    }) async {
-      String escapeSql(String value) {
-        return value.replaceAll("'", "''");
-      }
+  Future<Product> createProduct({
+    required String name,
+    required double price,
+    String? image,
+    required String category,
+    required String sellerName,
+    required String sellerEmail,
+  }) async {
+    const sql = '''
+      INSERT INTO Products
+      (
+        Name,
+        Price,
+        Image,
+        Category,
+        SellerName,
+        SellerEmail
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    ''';
 
-      final nameValue = escapeSql(name);
-      final categoryValue = escapeSql(category);
-      final sellerNameValue = escapeSql(sellerName);
-      final sellerEmailValue = escapeSql(sellerEmail);
+    final result = await _database.execute(sql, [
+      name,
+      price,
+      image,
+      category,
+      sellerName,
+      sellerEmail,
+    ]);
 
-      final imageValue = image == null || image.isEmpty
-          ? 'NULL'
-          : "N'${escapeSql(image)}'";
+    final insertedId = result.insertId;
 
-      final result = await _database.query(
-        '''
-        INSERT INTO Products
-        (
-          Name,
-          Price,
-          Image,
-          Category,
-          SellerName,
-          SellerEmail
-        )
-        OUTPUT
-          INSERTED.Id,
-          INSERTED.Name,
-          INSERTED.Price,
-          INSERTED.Image,
-          INSERTED.Category,
-          INSERTED.SellerName,
-          INSERTED.SellerEmail
-        VALUES
-        (
-          N'$nameValue',
-          $price,
-          $imageValue,
-          N'$categoryValue',
-          N'$sellerNameValue',
-          N'$sellerEmailValue'
-        )
-        ''',
-      );
-
-      if (result.isEmpty) {
-        throw Exception('Failed to create product.');
-      }
-
-      final row = result.rows.first;
-
-      return Product.fromMap(
-        {
-          'Id': row['Id'],
-          'Name': row['Name'],
-          'Price': row['Price'],
-          'Image': row['Image'],
-          'Category': row['Category'],
-          'SellerName': row['SellerName'],
-          'SellerEmail': row['SellerEmail'],
-        },
-      );
+    if (insertedId == null || insertedId == 0) {
+      throw Exception('Failed to create product.');
     }
+
+    final newProduct = await findById(insertedId);
+
+    if (newProduct == null) {
+      throw Exception('Failed to fetch newly created product.');
+    }
+
+    return newProduct;
+  }
 
   Future<List<Product>> getAll() async {
     const sql = '''
@@ -95,15 +69,17 @@ class ProductRepository {
 
     final result = await _database.query(sql);
 
-    return result.rows.map((row) {
+    return result.map((row) {
+      final fields = row.toColumnMap();
+
       return Product.fromMap({
-        'Id': row['Id'],
-        'Name': row['Name'],
-        'Price': row['Price'],
-        'Image': row['Image'],
-        'Category': row['Category'],
-        'SellerName': row['SellerName'],
-        'SellerEmail': row['SellerEmail'],
+        'Id': fields['Id'],
+        'Name': fields['Name'],
+        'Price': fields['Price'],
+        'Image': fields['Image'],
+        'Category': fields['Category'],
+        'SellerName': fields['SellerName'],
+        'SellerEmail': fields['SellerEmail'],
       });
     }).toList();
   }
@@ -119,30 +95,25 @@ class ProductRepository {
         SellerName,
         SellerEmail
       FROM Products
-      WHERE Id = @id
+      WHERE Id = ?
     ''';
 
-    final result = await _database.query(
-      sql,
-      parameters: {
-        'id': id,
-      },
-    );
+    final result = await _database.query(sql, [id]);
 
-    if (result.rows.isEmpty) {
+    if (result.isEmpty) {
       return null;
     }
 
-    final row = result.rows.first;
+    final fields = result.first.toColumnMap();
 
     return Product.fromMap({
-      'Id': row['Id'],
-      'Name': row['Name'],
-      'Price': row['Price'],
-      'Image': row['Image'],
-      'Category': row['Category'],
-      'SellerName': row['SellerName'],
-      'SellerEmail': row['SellerEmail'],
+      'Id': fields['Id'],
+      'Name': fields['Name'],
+      'Price': fields['Price'],
+      'Image': fields['Image'],
+      'Category': fields['Category'],
+      'SellerName': fields['SellerName'],
+      'SellerEmail': fields['SellerEmail'],
     });
   }
 }
