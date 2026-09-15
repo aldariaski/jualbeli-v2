@@ -1,11 +1,11 @@
 {
     "version": 2,
     "builds": [{
-        "src": "",
+        "src": "/",
         "use": "vercel-dart"
     }],
     "routes": [{
         "src": "/(.*)",
-        "dest": ""
+        "dest": "/"
     }]
 }
