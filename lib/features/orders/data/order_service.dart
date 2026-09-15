@@ -12,7 +12,7 @@ class OrderService {
       OrderService._();
 
   static const String baseUrl =
-      'http://localhost:8080';
+      'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   // ------------------------------------------------------------
   // GET JWT TOKEN

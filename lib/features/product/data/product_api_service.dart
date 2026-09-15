@@ -6,7 +6,7 @@ import 'product_model.dart';
 import '../../auth/data/auth_storage.dart';
 
 class ProductApiService {
-  static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   Future<List<Product>> getProducts() async {
     final response = await http.get(

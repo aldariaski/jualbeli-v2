@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   static const String baseUrl =
-      'http://127.0.0.1:8080';
+      'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   Future<Map<String, dynamic>> register({
     required String name,

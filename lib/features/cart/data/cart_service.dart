@@ -13,7 +13,7 @@ class CartService {
   static final CartService instance = CartService._();
 
   static const String baseUrl =
-      'http://localhost:8080';
+      'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   // ------------------------------------------------------------
   // SERIALIZE CART REQUESTS

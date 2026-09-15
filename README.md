@@ -35,7 +35,7 @@ dart run
 The backend runs on:
 
 ```text
-http://127.0.0.1:8080
+https://jualbeli-v2-aldariaski-api.vercel.app
 ```
 
 You should see:
@@ -69,7 +69,7 @@ The backend currently provides:
 ### Endpoint
 
 ```text
-POST http://127.0.0.1:8080/auth/register
+POST https://jualbeli-v2-aldariaski-api.vercel.app/auth/register
 ```
 
 ### Request
@@ -78,7 +78,7 @@ PowerShell:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8080/auth/register" `
+  -Uri "https://jualbeli-v2-aldariaski-api.vercel.appauth/register" `
   -Method Post `
   -ContentType "application/json" `
   -Body '{"name":"Test User","email":"test@example.com","password":"password123"}'
@@ -103,7 +103,7 @@ Passwords are hashed using BCrypt before being stored in the database.
 ### Endpoint
 
 ```text
-POST http://127.0.0.1:8080/auth/login
+POST https://jualbeli-v2-aldariaski-api.vercel.app/auth/login
 ```
 
 ### Request
@@ -112,7 +112,7 @@ PowerShell:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8080/auth/login" `
+  -Uri "https://jualbeli-v2-aldariaski-api.vercel.appauth/login" `
   -Method Post `
   -ContentType "application/json" `
   -Body '{"email":"test@example.com","password":"password123"}'

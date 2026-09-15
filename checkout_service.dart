@@ -9,7 +9,7 @@ class CheckoutService {
       CheckoutService._();
 
   static const String baseUrl =
-      'http://localhost:8080';
+      'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   Future<int> placeOrder({
     required String email,
