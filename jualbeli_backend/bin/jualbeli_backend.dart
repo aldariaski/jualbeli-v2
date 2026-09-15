@@ -5,12 +5,12 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
-import 'package:jualbeli_backend/database/database.dart';
-import 'package:jualbeli_backend/routes/auth_routes.dart';
-import 'package:jualbeli_backend/routes/product_routes.dart';
-import 'package:jualbeli_backend/routes/cart_routes.dart';
-import 'package:jualbeli_backend/routes/order_routes.dart';
-import 'package:jualbeli_backend/middleware/auth_middleware.dart';
+import '../lib/database/database.dart';
+import '../lib/routes/auth_routes.dart';
+import '../lib/routes/product_routes.dart';
+import '../lib/routes/cart_routes.dart';
+import '../lib/routes/order_routes.dart';
+import '../lib/middleware/auth_middleware.dart';
 
 Future<void> main() async {
   final database = DatabaseConnection.instance;
