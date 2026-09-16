@@ -13,113 +13,72 @@ import 'package:jualbeli_backend/routes/order_routes.dart';
 import 'package:jualbeli_backend/routes/product_routes.dart';
 
 Future<void> main() async {
-try {
-// ------------------------------------------------------------
-// Database configuration
-// ------------------------------------------------------------
+  final database = DatabaseConnection.instance;
 
-```
-final database = DatabaseConnection.instance;
+  final dbHost = Platform.environment['DB_HOST'] ?? 'localhost';
+  final dbPort =
+      int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
+  final dbName =
+      Platform.environment['DB_NAME'] ?? 'jualbeli_db';
+  final dbUser =
+      Platform.environment['DB_USER'] ?? 'root';
+  final dbPassword =
+      Platform.environment['DB_PASSWORD'] ?? '';
 
-final dbHost = Platform.environment['DB_HOST'] ?? 'localhost';
-
-final dbPort =
-    int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
-
-final dbName =
-    Platform.environment['DB_NAME'] ?? 'jualbeli_db';
-
-final dbUser =
-    Platform.environment['DB_USER'] ?? 'root';
-
-final dbPassword =
-    Platform.environment['DB_PASSWORD'] ?? '';
-
-print('Connecting to database: $dbHost:$dbPort/$dbName');
-
-await database.connect(
-  host: dbHost,
-  port: dbPort,
-  databaseName: dbName,
-  username: dbUser,
-  password: dbPassword,
-);
-
-print('Database connected successfully.');
-
-// ------------------------------------------------------------
-// Router
-// ------------------------------------------------------------
-
-final router = Router();
-
-router.get('/', (Request request) {
-  return Response.ok(
-    'JualBeli Backend is running.',
+  await database.connect(
+    host: dbHost,
+    port: dbPort,
+    databaseName: dbName,
+    username: dbUser,
+    password: dbPassword,
   );
-});
 
-router.mount(
-  '/auth/',
-  AuthRoutes().router.call,
-);
+  final router = Router();
 
-router.mount(
-  '/products/',
-  ProductRoutes().router.call,
-);
+  router.get('/', (Request request) {
+    return Response.ok('JualBeli Backend is running.');
+  });
 
-router.mount(
-  '/cart/',
-  Pipeline()
-      .addMiddleware(AuthMiddleware.middleware)
-      .addHandler(CartRoutes().router.call),
-);
+  router.mount(
+    '/auth/',
+    AuthRoutes().router.call,
+  );
 
-router.mount(
-  '/orders/',
-  Pipeline()
-      .addMiddleware(AuthMiddleware.middleware)
-      .addHandler(OrderRoutes.instance.router.call),
-);
+  router.mount(
+    '/products/',
+    ProductRoutes().router.call,
+  );
 
-// ------------------------------------------------------------
-// Middleware
-// ------------------------------------------------------------
+  router.mount(
+    '/cart/',
+    Pipeline()
+        .addMiddleware(AuthMiddleware.middleware)
+        .addHandler(CartRoutes().router.call),
+  );
 
-final handler = Pipeline()
-    .addMiddleware(corsHeaders())
-    .addMiddleware(logRequests())
-    .addHandler(router.call);
+  router.mount(
+    '/orders/',
+    Pipeline()
+        .addMiddleware(AuthMiddleware.middleware)
+        .addHandler(OrderRoutes.instance.router.call),
+  );
 
-// ------------------------------------------------------------
-// Server
-// ------------------------------------------------------------
+  final handler = Pipeline()
+      .addMiddleware(corsHeaders())
+      .addMiddleware(logRequests())
+      .addHandler(router.call);
 
-final serverPort =
-    int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
+  final serverPort =
+      int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
 
-print('Starting HTTP server on port $serverPort...');
+  final server = await shelf_io.serve(
+    handler,
+    InternetAddress.anyIPv4,
+    serverPort,
+  );
 
-final server = await shelf_io.serve(
-  handler,
-  InternetAddress.anyIPv4,
-  serverPort,
-);
-
-print(
-  'JualBeli backend running on '
-  'http://${server.address.host}:${server.port}',
-);
-
-
-} catch (e, stackTrace) {
-print('SERVER STARTUP ERROR: $e');
-print(stackTrace);
-
-
-exit(1);
-
-
-}
+  print(
+    'JualBeli backend running on '
+    'http://${server.address.host}:${server.port}',
+  );
 }
