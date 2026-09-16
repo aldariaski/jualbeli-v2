@@ -20,6 +20,8 @@ class DatabaseConnection {
 
   Future<void> _operationQueue = Future.value();
 
+  bool _caLoaded = false;
+
   Future<void> connect({
     required String host,
     required int port,
@@ -33,7 +35,62 @@ class DatabaseConnection {
     _username = username;
     _password = password;
 
+    _loadCaCertificate();
+
     await _connect();
+  }
+
+  void _loadCaCertificate() {
+    if (_caLoaded) {
+      return;
+    }
+
+    final caCert = Platform.environment['CA_CERT'];
+
+    if (caCert != null && caCert.trim().isNotEmpty) {
+      print('Loading CA certificate from CA_CERT...');
+
+      SecurityContext.defaultContext.setTrustedCertificatesBytes(
+        caCert.codeUnits,
+      );
+
+      _caLoaded = true;
+
+      print('CA certificate loaded successfully.');
+
+      return;
+    }
+
+    final caPath = Platform.environment['CA_PATH'];
+
+    if (caPath != null && caPath.trim().isNotEmpty) {
+      print('Loading CA certificate from: $caPath');
+
+      final file = File(caPath);
+
+      if (!file.existsSync()) {
+        throw Exception(
+          'CA_PATH does not exist: $caPath',
+        );
+      }
+
+      SecurityContext.defaultContext.setTrustedCertificates(
+        caPath,
+      );
+
+      _caLoaded = true;
+
+      print('CA certificate loaded successfully.');
+
+      return;
+    }
+
+    print(
+      'No custom CA certificate supplied. '
+      'Using system trusted certificates.',
+    );
+
+    _caLoaded = true;
   }
 
   Future<void> _connect() async {
@@ -53,11 +110,14 @@ class DatabaseConnection {
 
     _connecting = true;
 
-    print('Connecting to MySQL...');
+    print('========================================');
+    print('Connecting to MySQL/TiDB...');
     print('Host: $_host');
     print('Port: $_port');
     print('Database: $_databaseName');
     print('User: $_username');
+    print('TLS: enabled');
+    print('========================================');
 
     try {
       final settings = ConnectionSettings(
@@ -66,23 +126,28 @@ class DatabaseConnection {
         user: _username!,
         password: _password!,
         db: _databaseName!,
-        timeout: const Duration(seconds: 30),
         useSSL: true,
+        timeout: const Duration(seconds: 30),
       );
 
-      _connection = await MySqlConnection.connect(settings);
+      _connection = await MySqlConnection.connect(
+        settings,
+      );
 
-      print('========== MYSQL CONNECTED ==========');
+      print('========================================');
+      print('MYSQL/TIDB CONNECTED');
       print('Database connection successful!');
-      print('=====================================');
+      print('TLS connection established.');
+      print('========================================');
     } catch (e, stackTrace) {
       _connection = null;
 
-      print('========== MYSQL ERROR ==========');
+      print('========================================');
+      print('MYSQL/TIDB CONNECTION ERROR');
       print('Error: $e');
       print('Type: ${e.runtimeType}');
       print('Stack trace: $stackTrace');
-      print('=================================');
+      print('========================================');
 
       rethrow;
     } finally {
@@ -125,7 +190,15 @@ class DatabaseConnection {
       } catch (e) {
         print('Database query failed: $e');
 
+        final oldConnection = _connection;
+
         _connection = null;
+
+        if (oldConnection != null) {
+          try {
+            await oldConnection.close();
+          } catch (_) {}
+        }
 
         await _connect();
 
@@ -141,11 +214,16 @@ class DatabaseConnection {
     String sql, [
     List<Object?>? positionalParams,
   ]) {
-    return query(sql, positionalParams);
+    return query(
+      sql,
+      positionalParams,
+    );
   }
 
   Future<T> transaction<T>(
-    Future<T> Function(MySqlConnection connection) operation,
+    Future<T> Function(
+      MySqlConnection connection,
+    ) operation,
   ) async {
     return _withLock(() async {
       await _connect();
@@ -153,7 +231,9 @@ class DatabaseConnection {
       try {
         return await _connection!.transaction(
           (ctx) async {
-            return await operation(_connection!);
+            return await operation(
+              _connection!,
+            );
           },
         ) as T;
       } catch (e) {
@@ -177,11 +257,6 @@ class DatabaseConnection {
     }
   }
 }
-
-// ====================================================================
-// ResultRow Extension
-// Converts mysql1 ResultRow to a Column Name Map
-// ====================================================================
 
 extension ResultRowMapExtension on ResultRow {
   Map<String, dynamic> toColumnMap() {
