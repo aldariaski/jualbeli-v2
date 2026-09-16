@@ -1,11 +1,14 @@
 {
-    "functions": {
-        "main.dart": {
-            "runtime": "vercel-dart@1.1.0"
+    "version": 2,
+    "builds": [{
+        "src": "/",
+        "use": "vercel-dart",
+        "config": {
+            "distDir": "."
         }
-    },
-    "rewrites": [{
-        "source": "/(.*)",
-        "destination": "/main.dart"
+    }],
+    "routes": [{
+        "src": "/(.*)",
+        "dest": "/"
     }]
 }
