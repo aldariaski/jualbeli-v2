@@ -13,33 +13,39 @@ import 'package:jualbeli_backend/routes/order_routes.dart';
 import 'package:jualbeli_backend/routes/product_routes.dart';
 
 Future<void> main() async {
+try {
 // ------------------------------------------------------------
 // Database configuration
 // ------------------------------------------------------------
 
+```
 final database = DatabaseConnection.instance;
 
 final dbHost = Platform.environment['DB_HOST'] ?? 'localhost';
 
 final dbPort =
-int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
+    int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
 
 final dbName =
-Platform.environment['DB_NAME'] ?? 'jualbeli_db';
+    Platform.environment['DB_NAME'] ?? 'jualbeli_db';
 
 final dbUser =
-Platform.environment['DB_USER'] ?? 'root';
+    Platform.environment['DB_USER'] ?? 'root';
 
 final dbPassword =
-Platform.environment['DB_PASSWORD'] ?? '';
+    Platform.environment['DB_PASSWORD'] ?? '';
+
+print('Connecting to database: $dbHost:$dbPort/$dbName');
 
 await database.connect(
-host: dbHost,
-port: dbPort,
-databaseName: dbName,
-username: dbUser,
-password: dbPassword,
+  host: dbHost,
+  port: dbPort,
+  databaseName: dbName,
+  username: dbUser,
+  password: dbPassword,
 );
+
+print('Database connected successfully.');
 
 // ------------------------------------------------------------
 // Router
@@ -47,39 +53,34 @@ password: dbPassword,
 
 final router = Router();
 
-// Health check
 router.get('/', (Request request) {
-return Response.ok(
-'JualBeli Backend is running.',
-);
+  return Response.ok(
+    'JualBeli Backend is running.',
+  );
 });
 
-// Authentication
 router.mount(
-'/auth/',
-AuthRoutes().router.call,
+  '/auth/',
+  AuthRoutes().router.call,
 );
 
-// Products
 router.mount(
-'/products/',
-ProductRoutes().router.call,
+  '/products/',
+  ProductRoutes().router.call,
 );
 
-// Cart
 router.mount(
-'/cart/',
-Pipeline()
-.addMiddleware(AuthMiddleware.middleware)
-.addHandler(CartRoutes().router.call),
+  '/cart/',
+  Pipeline()
+      .addMiddleware(AuthMiddleware.middleware)
+      .addHandler(CartRoutes().router.call),
 );
 
-// Orders
 router.mount(
-'/orders/',
-Pipeline()
-.addMiddleware(AuthMiddleware.middleware)
-.addHandler(OrderRoutes.instance.router.call),
+  '/orders/',
+  Pipeline()
+      .addMiddleware(AuthMiddleware.middleware)
+      .addHandler(OrderRoutes.instance.router.call),
 );
 
 // ------------------------------------------------------------
@@ -87,27 +88,38 @@ Pipeline()
 // ------------------------------------------------------------
 
 final handler = Pipeline()
-.addMiddleware(corsHeaders())
-.addMiddleware(logRequests())
-.addHandler(router.call);
+    .addMiddleware(corsHeaders())
+    .addMiddleware(logRequests())
+    .addHandler(router.call);
 
 // ------------------------------------------------------------
 // Server
 // ------------------------------------------------------------
 
-// Vercel provides PORT automatically.
-// Locally, the backend continues to use port 8080.
 final serverPort =
-int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
+    int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
+
+print('Starting HTTP server on port $serverPort...');
 
 final server = await shelf_io.serve(
-handler,
-InternetAddress.anyIPv4,
-serverPort,
+  handler,
+  InternetAddress.anyIPv4,
+  serverPort,
 );
 
 print(
-'JualBeli backend running on '
-'http://${server.address.host}:${server.port}',
+  'JualBeli backend running on '
+  'http://${server.address.host}:${server.port}',
 );
+
+
+} catch (e, stackTrace) {
+print('SERVER STARTUP ERROR: $e');
+print(stackTrace);
+
+
+exit(1);
+
+
+}
 }
