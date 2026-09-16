@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:mysql1/mysql1.dart';
+import 'package:mysql_dart/mysql_dart.dart';
 
 class DatabaseConnection {
   DatabaseConnection._();
 
-  static final DatabaseConnection instance = DatabaseConnection._();
+  static final DatabaseConnection instance =
+      DatabaseConnection._();
 
-  MySqlConnection? _connection;
+  MySQLConnection? _connection;
 
   String? _host;
   int? _port;
@@ -19,8 +20,6 @@ class DatabaseConnection {
   bool _connecting = false;
 
   Future<void> _operationQueue = Future.value();
-
-  bool _caLoaded = false;
 
   Future<void> connect({
     required String host,
@@ -35,37 +34,35 @@ class DatabaseConnection {
     _username = username;
     _password = password;
 
-    _loadCaCertificate();
-
     await _connect();
   }
 
-  void _loadCaCertificate() {
-    if (_caLoaded) {
-      return;
-    }
+  SecurityContext _createSecurityContext() {
+    final context = SecurityContext(
+      withTrustedRoots: true,
+    );
 
-    final caCert = Platform.environment['CA_CERT'];
+    final caCertificate =
+        Platform.environment['CA_CERT'];
 
-    if (caCert != null && caCert.trim().isNotEmpty) {
-      print('Loading CA certificate from CA_CERT...');
+    if (caCertificate != null &&
+        caCertificate.trim().isNotEmpty) {
+      print('Loading TiDB CA certificate...');
 
-      SecurityContext.defaultContext.setTrustedCertificatesBytes(
-        caCert.codeUnits,
+      context.setTrustedCertificatesBytes(
+        caCertificate.codeUnits,
       );
 
-      _caLoaded = true;
+      print('TiDB CA certificate loaded.');
 
-      print('CA certificate loaded successfully.');
-
-      return;
+      return context;
     }
 
-    final caPath = Platform.environment['CA_PATH'];
+    final caPath =
+        Platform.environment['CA_PATH'];
 
-    if (caPath != null && caPath.trim().isNotEmpty) {
-      print('Loading CA certificate from: $caPath');
-
+    if (caPath != null &&
+        caPath.trim().isNotEmpty) {
       final file = File(caPath);
 
       if (!file.existsSync()) {
@@ -74,27 +71,28 @@ class DatabaseConnection {
         );
       }
 
-      SecurityContext.defaultContext.setTrustedCertificates(
+      print(
+        'Loading TiDB CA certificate from $caPath',
+      );
+
+      context.setTrustedCertificates(
         caPath,
       );
 
-      _caLoaded = true;
-
-      print('CA certificate loaded successfully.');
-
-      return;
+      return context;
     }
 
     print(
-      'No custom CA certificate supplied. '
+      'No custom CA provided. '
       'Using system trusted certificates.',
     );
 
-    _caLoaded = true;
+    return context;
   }
 
   Future<void> _connect() async {
-    if (_connection != null) {
+    if (_connection != null &&
+        _connection!.connected) {
       return;
     }
 
@@ -120,19 +118,23 @@ class DatabaseConnection {
     print('========================================');
 
     try {
-      final settings = ConnectionSettings(
+      final securityContext =
+          _createSecurityContext();
+
+      final connection =
+          await MySQLConnection.createConnection(
         host: _host!,
         port: _port!,
-        user: _username!,
+        userName: _username!,
         password: _password!,
-        db: _databaseName!,
-        useSSL: true,
-        timeout: const Duration(seconds: 30),
+        databaseName: _databaseName!,
+        secure: true,
+        securityContext: securityContext,
       );
 
-      _connection = await MySqlConnection.connect(
-        settings,
-      );
+      await connection.connect();
+
+      _connection = connection;
 
       print('========================================');
       print('MYSQL/TIDB CONNECTED');
@@ -175,7 +177,7 @@ class DatabaseConnection {
     });
   }
 
-  Future<Results> query(
+  Future<IResultSet> query(
     String sql, [
     List<Object?>? positionalParams,
   ]) {
@@ -183,26 +185,18 @@ class DatabaseConnection {
       await _connect();
 
       try {
-        return await _connection!.query(
+        return await _executePositional(
           sql,
           positionalParams,
         );
       } catch (e) {
-        print('Database query failed: $e');
+        print(
+          'Database query failed: $e',
+        );
 
-        final oldConnection = _connection;
+        await _reconnect();
 
-        _connection = null;
-
-        if (oldConnection != null) {
-          try {
-            await oldConnection.close();
-          } catch (_) {}
-        }
-
-        await _connect();
-
-        return await _connection!.query(
+        return await _executePositional(
           sql,
           positionalParams,
         );
@@ -210,7 +204,7 @@ class DatabaseConnection {
     });
   }
 
-  Future<Results> execute(
+  Future<IResultSet> execute(
     String sql, [
     List<Object?>? positionalParams,
   ]) {
@@ -220,26 +214,84 @@ class DatabaseConnection {
     );
   }
 
+  Future<IResultSet> _executePositional(
+    String sql,
+    List<Object?>? params,
+  ) async {
+    /*
+     * mysql_dart 3.0.0 supports positional parameters
+     * through execute().
+     *
+     * If there are no parameters, execute directly.
+     */
+
+    if (params == null || params.isEmpty) {
+      return await _connection!.execute(sql);
+    }
+
+    /*
+     * Convert:
+     *
+     *   SELECT * FROM users WHERE id = ?
+     *
+     * into:
+     *
+     *   SELECT * FROM users WHERE id = :p0
+     *
+     * and provide:
+     *
+     *   { "p0": value }
+     */
+
+    var convertedSql = sql;
+
+    final parameters =
+        <String, dynamic>{};
+
+    for (var i = 0; i < params.length; i++) {
+      final parameterName = 'p$i';
+
+      convertedSql =
+          convertedSql.replaceFirst(
+        '?',
+        ':$parameterName',
+      );
+
+      parameters[parameterName] =
+          params[i];
+    }
+
+    return await _connection!.execute(
+      convertedSql,
+      parameters,
+    );
+  }
+
+  Future<void> _reconnect() async {
+    final oldConnection = _connection;
+
+    _connection = null;
+
+    if (oldConnection != null) {
+      try {
+        await oldConnection.close();
+      } catch (_) {}
+    }
+
+    await _connect();
+  }
+
   Future<T> transaction<T>(
     Future<T> Function(
-      MySqlConnection connection,
+      MySQLConnection connection,
     ) operation,
-  ) async {
+  ) {
     return _withLock(() async {
       await _connect();
 
-      try {
-        return await _connection!.transaction(
-          (ctx) async {
-            return await operation(
-              _connection!,
-            );
-          },
-        ) as T;
-      } catch (e) {
-        print('Database transaction failed: $e');
-        rethrow;
-      }
+      return await _connection!.transactional<T>(
+        operation,
+      );
     });
   }
 
@@ -252,26 +304,10 @@ class DatabaseConnection {
       try {
         await connection.close();
       } catch (e) {
-        print('Database close error: $e');
+        print(
+          'Database close error: $e',
+        );
       }
     }
-  }
-}
-
-extension ResultRowMapExtension on ResultRow {
-  Map<String, dynamic> toColumnMap() {
-    final map = <String, dynamic>{};
-
-    if (fields != null) {
-      for (var i = 0; i < fields!.length; i++) {
-        final name = fields![i].name;
-
-        if (name != null) {
-          map[name] = this[i];
-        }
-      }
-    }
-
-    return map;
   }
 }
