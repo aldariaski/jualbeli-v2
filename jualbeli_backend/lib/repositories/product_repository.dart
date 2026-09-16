@@ -18,8 +18,7 @@ class ProductRepository {
     required String sellerEmail,
   }) async {
     const sql = '''
-      INSERT INTO Products
-      (
+      INSERT INTO Products (
         Name,
         Price,
         Image,
@@ -41,14 +40,18 @@ class ProductRepository {
 
     final insertedId = result.insertId;
 
-    if (insertedId == null || insertedId == 0) {
-      throw Exception('Failed to create product.');
+    if (insertedId == 0) {
+      throw Exception(
+        'Failed to create product.',
+      );
     }
 
     final newProduct = await findById(insertedId);
 
     if (newProduct == null) {
-      throw Exception('Failed to fetch newly created product.');
+      throw Exception(
+        'Failed to fetch newly created product.',
+      );
     }
 
     return newProduct;
@@ -70,7 +73,7 @@ class ProductRepository {
 
     final result = await _database.query(sql);
 
-    return result.map((row) {
+    return result.rows.map((row) {
       final fields = row.toColumnMap();
 
       return Product.fromMap({
@@ -101,11 +104,11 @@ class ProductRepository {
 
     final result = await _database.query(sql, [id]);
 
-    if (result.isEmpty) {
+    if (result.rows.isEmpty) {
       return null;
     }
 
-    final fields = result.first.toColumnMap();
+    final fields = result.rows.first.toColumnMap();
 
     return Product.fromMap({
       'Id': fields['Id'],

@@ -9,20 +9,6 @@ extension ResultSetRowCompat on ResultSetRow {
       map.entries.map((entry) {
         final value = entry.value;
 
-        // Convert numeric strings to int/double where appropriate.
-        if (value is String) {
-          final intValue = int.tryParse(value);
-
-          if (intValue != null) {
-            return MapEntry(entry.key, intValue);
-          }
-
-          final doubleValue = double.tryParse(value);
-
-          if (doubleValue != null) {
-            return MapEntry(entry.key, doubleValue);
-          }
-        }
 
         return MapEntry(entry.key, value);
       }),

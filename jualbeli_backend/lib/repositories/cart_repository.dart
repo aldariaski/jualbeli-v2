@@ -9,9 +9,7 @@ class CartRepository {
     DatabaseConnection? database,
   }) : _database = database ?? DatabaseConnection.instance;
 
-  Future<List<CartItem>> findByUser(
-    String userEmail,
-  ) async {
+  Future<List<CartItem>> findByUser(String userEmail) async {
     const sql = '''
       SELECT
         c.Id,
@@ -33,21 +31,20 @@ class CartRepository {
 
     final result = await _database.query(sql, [userEmail]);
 
-    return result.map((row) {
-      // row.fields can be accessed using column names or index in mysql1
+    return result.rows.map((row) {
       final fields = row.toColumnMap();
 
       return CartItem(
-        id: fields['Id'] as int,
-        userEmail: fields['UserEmail'] as String,
-        productId: fields['ProductId'] as int,
-        quantity: fields['Quantity'] as int,
-        productName: fields['ProductName'] as String,
-        price: (fields['Price'] as num).toDouble(),
-        image: fields['Image'] as String?,
-        category: fields['Category'] as String,
-        sellerName: fields['SellerName'] as String,
-        sellerEmail: fields['SellerEmail'] as String,
+        id: _int(fields['Id']),
+        userEmail: fields['UserEmail']?.toString() ?? '',
+        productId: _int(fields['ProductId']),
+        quantity: _int(fields['Quantity']),
+        productName: fields['ProductName']?.toString() ?? '',
+        price: _double(fields['Price']),
+        image: fields['Image']?.toString(),
+        category: fields['Category']?.toString() ?? '',
+        sellerName: fields['SellerName']?.toString() ?? '',
+        sellerEmail: fields['SellerEmail']?.toString() ?? '',
       );
     }).toList();
   }
@@ -56,8 +53,6 @@ class CartRepository {
     String userEmail,
     int productId,
   ) async {
-    // Replaced SQL Server IF EXISTS / ELSE with MySQL ON DUPLICATE KEY UPDATE.
-    // Assumes (UserEmail, ProductId) is a UNIQUE index / composite key in MySQL.
     const sql = '''
       INSERT INTO CartItems (
         UserEmail,
@@ -78,10 +73,7 @@ class CartRepository {
     int quantity,
   ) async {
     if (quantity <= 0) {
-      await remove(
-        userEmail,
-        productId,
-      );
+      await remove(userEmail, productId);
       return;
     }
 
@@ -92,7 +84,11 @@ class CartRepository {
         AND ProductId = ?
     ''';
 
-    await _database.execute(sql, [quantity, userEmail, productId]);
+    await _database.execute(sql, [
+      quantity,
+      userEmail,
+      productId,
+    ]);
   }
 
   Future<void> remove(
@@ -105,17 +101,46 @@ class CartRepository {
         AND ProductId = ?
     ''';
 
-    await _database.execute(sql, [userEmail, productId]);
+    await _database.execute(sql, [
+      userEmail,
+      productId,
+    ]);
   }
 
-  Future<void> clear(
-    String userEmail,
-  ) async {
+  Future<void> clear(String userEmail) async {
     const sql = '''
       DELETE FROM CartItems
       WHERE UserEmail = ?
     ''';
 
     await _database.execute(sql, [userEmail]);
+  }
+
+  int _int(dynamic value) {
+    if (value == null) {
+      return 0;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  double _double(dynamic value) {
+    if (value == null) {
+      return 0;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(value.toString()) ?? 0;
   }
 }
