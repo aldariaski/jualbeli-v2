@@ -5,12 +5,12 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
-import '../database/database.dart';
-import '../routes/auth_routes.dart';
-import '../routes/product_routes.dart';
-import '../routes/cart_routes.dart';
-import '../routes/order_routes.dart';
-import '../middleware/auth_middleware.dart';
+import '../lib/database/database.dart';
+import '../lib/routes/auth_routes.dart';
+import '../lib/routes/product_routes.dart';
+import '../lib/routes/cart_routes.dart';
+import '../lib/routes/order_routes.dart';
+import '../lib/middleware/auth_middleware.dart';
 
 Future<void> main() async {
   final database = DatabaseConnection.instance;
