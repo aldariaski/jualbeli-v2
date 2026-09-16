@@ -2,10 +2,8 @@
     "version": 2,
     "builds": [{
         "src": "bin/jualbeli_backend.dart",
-        "use": "vercel-dart",
-        "config": {
-            "distDir": "."
-        }
+        "use": "vercel-dart"
+        
     }],
     "routes": [{
         "src": "/(.*)",
