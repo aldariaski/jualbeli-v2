@@ -1,34 +1,26 @@
 import 'package:mysql_dart/mysql_dart.dart';
 
+/// Compatibility with mysql1 ResultRow.toColumnMap()
 extension ResultSetRowCompat on ResultSetRow {
   Map<String, dynamic> toColumnMap() {
-    final map = assoc();
-
-    // Normalize common MySQL/TiDB numeric values.
-    for (final key in map.keys.toList()) {
-      final value = map[key];
-
-      if (value is String) {
-        final intValue = int.tryParse(value);
-
-        if (intValue != null) {
-          map[key] = intValue;
-          continue;
-        }
-
-        final doubleValue = double.tryParse(value);
-
-        if (doubleValue != null) {
-          map[key] = doubleValue;
-        }
-      }
-    }
-
-    return map;
+    return assoc();
   }
 }
 
+/// Compatibility for code that calls:
+/// result.toColumnMap()
+/// where result is an IResultSet.
 extension IResultSetCompat on IResultSet {
+  Map<String, dynamic> toColumnMap() {
+    if (rows.isEmpty) {
+      return <String, dynamic>{};
+    }
+
+    return rows.first.assoc();
+  }
+
+  /// Compatibility with mysql1:
+  /// result.insertId
   int get insertId {
     return lastInsertID.toInt();
   }
