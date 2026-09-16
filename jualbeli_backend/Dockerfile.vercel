@@ -15,10 +15,7 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-COPY --from=build /runtime/ /
 COPY --from=build /app/bin/server /app/server
-
-ENV PORT=8080
 
 EXPOSE 8080
 
