@@ -20,7 +20,7 @@ Future<void> main() async {
     final port =
         int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
     final databaseName =
-        Platform.environment['DB_NAME'] ?? 'jualbeli_db';
+        Platform.environment['DB_NAME'] ?? 'JualBeliDb';
     final username =
         Platform.environment['DB_USER'] ?? 'root';
     final password =
