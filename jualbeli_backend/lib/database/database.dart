@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:mysql1/mysql1.dart';
 
@@ -56,6 +57,7 @@ class DatabaseConnection {
     print('Host: $_host');
     print('Port: $_port');
     print('Database: $_databaseName');
+    print('User: $_username');
 
     try {
       final settings = ConnectionSettings(
@@ -65,6 +67,7 @@ class DatabaseConnection {
         password: _password!,
         db: _databaseName!,
         timeout: const Duration(seconds: 30),
+        useSSL: true,
       );
 
       _connection = await MySqlConnection.connect(settings);
@@ -115,7 +118,10 @@ class DatabaseConnection {
       await _connect();
 
       try {
-        return await _connection!.query(sql, positionalParams);
+        return await _connection!.query(
+          sql,
+          positionalParams,
+        );
       } catch (e) {
         print('Database query failed: $e');
 
@@ -123,7 +129,10 @@ class DatabaseConnection {
 
         await _connect();
 
-        return await _connection!.query(sql, positionalParams);
+        return await _connection!.query(
+          sql,
+          positionalParams,
+        );
       }
     });
   }
@@ -142,9 +151,11 @@ class DatabaseConnection {
       await _connect();
 
       try {
-        return await _connection!.transaction((ctx) async {
-          return await operation(_connection!);
-        }) as T;
+        return await _connection!.transaction(
+          (ctx) async {
+            return await operation(_connection!);
+          },
+        ) as T;
       } catch (e) {
         print('Database transaction failed: $e');
         rethrow;
@@ -168,19 +179,24 @@ class DatabaseConnection {
 }
 
 // ====================================================================
-// ResultRow Extension (Converts mysql1 ResultRow to a Column Name Map)
+// ResultRow Extension
+// Converts mysql1 ResultRow to a Column Name Map
 // ====================================================================
+
 extension ResultRowMapExtension on ResultRow {
   Map<String, dynamic> toColumnMap() {
     final map = <String, dynamic>{};
+
     if (fields != null) {
       for (var i = 0; i < fields!.length; i++) {
         final name = fields![i].name;
+
         if (name != null) {
           map[name] = this[i];
         }
       }
     }
+
     return map;
   }
 }
