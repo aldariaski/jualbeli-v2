@@ -8,7 +8,7 @@ RUN dart pub get
 
 COPY . .
 
-RUN dart compile exe bin/jualbeli_backend.dart \
+RUN dart compile exe jualbeli_backend/bin/jualbeli_backend.dart \
     -o bin/server
 
 
