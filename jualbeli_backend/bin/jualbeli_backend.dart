@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
+import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -15,12 +15,15 @@ import 'package:jualbeli_backend/middleware/auth_middleware.dart';
 Future<void> main() async {
   final database = DatabaseConnection.instance;
 
-  // Retrieve database configuration from environment variables with fallback defaults
   final host = Platform.environment['DB_HOST'] ?? 'localhost';
-  final port = int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
-  final databaseName = Platform.environment['DB_NAME'] ?? 'jualbeli_db';
-  final username = Platform.environment['DB_USER'] ?? 'root';
-  final password = Platform.environment['DB_PASSWORD'] ?? '';
+  final port =
+      int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 3306;
+  final databaseName =
+      Platform.environment['DB_NAME'] ?? 'jualbeli_db';
+  final username =
+      Platform.environment['DB_USER'] ?? 'root';
+  final password =
+      Platform.environment['DB_PASSWORD'] ?? '';
 
   await database.connect(
     host: host,
@@ -67,7 +70,8 @@ Future<void> main() async {
       .addMiddleware(logRequests())
       .addHandler(router.call);
 
-  final serverPort = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
+  final serverPort =
+      int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
 
   final server = await shelf_io.serve(
     handler,

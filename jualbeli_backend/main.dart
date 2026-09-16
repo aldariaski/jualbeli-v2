@@ -1,7 +1,8 @@
 import 'dart:io';
 
-import 'package:shelf/shelf.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
 import 'package:jualbeli_backend/database/database.dart';
@@ -11,9 +12,7 @@ import 'package:jualbeli_backend/routes/cart_routes.dart';
 import 'package:jualbeli_backend/routes/order_routes.dart';
 import 'package:jualbeli_backend/middleware/auth_middleware.dart';
 
-Future<void>? _databaseInitialization;
-
-Future<void> _connectDatabase() async {
+Future<void> main() async {
   final database = DatabaseConnection.instance;
 
   final host = Platform.environment['DB_HOST'] ?? 'localhost';
@@ -33,46 +32,55 @@ Future<void> _connectDatabase() async {
     username: username,
     password: password,
   );
-}
 
-Future<void> _ensureDatabaseConnection() {
-  return _databaseInitialization ??= _connectDatabase();
-}
+  final router = Router();
 
-final router = Router()
-  ..get('/', (Request request) {
+  router.get('/', (Request request) {
     return Response.ok(
       'JualBeli Backend is running.',
     );
-  })
-  ..mount(
+  });
+
+  router.mount(
     '/auth/',
     AuthRoutes().router.call,
-  )
-  ..mount(
+  );
+
+  router.mount(
     '/products/',
     ProductRoutes().router.call,
-  )
-  ..mount(
+  );
+
+  router.mount(
     '/cart/',
     Pipeline()
         .addMiddleware(AuthMiddleware.middleware)
         .addHandler(CartRoutes().router.call),
-  )
-  ..mount(
+  );
+
+  router.mount(
     '/orders/',
     Pipeline()
         .addMiddleware(AuthMiddleware.middleware)
         .addHandler(OrderRoutes.instance.router.call),
   );
 
-final appHandler = const Pipeline()
-    .addMiddleware(corsHeaders())
-    .addMiddleware(logRequests())
-    .addHandler(router.call);
+  final handler = const Pipeline()
+      .addMiddleware(corsHeaders())
+      .addMiddleware(logRequests())
+      .addHandler(router.call);
 
-Future<Response> handler(Request request) async {
-  await _ensureDatabaseConnection();
+  final serverPort =
+      int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
 
-  return appHandler(request);
+  final server = await shelf_io.serve(
+    handler,
+    InternetAddress.anyIPv4,
+    serverPort,
+  );
+
+  print(
+    'JualBeli backend running on '
+    'http://${server.address.host}:${server.port}',
+  );
 }
