@@ -23,11 +23,12 @@ class UserRepository {
 
     final result = await _database.query(sql, [email]);
 
-    if (result.isEmpty) {
+    // mysql_dart: rows contains the actual database rows.
+    if (result.rows.isEmpty) {
       return null;
     }
 
-    final fields = result.first.toColumnMap();
+    final fields = result.rows.first.toColumnMap();
 
     return User.fromMap({
       'Id': fields['Id'],
