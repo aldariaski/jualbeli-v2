@@ -10,8 +10,5 @@
     "routes": [{
         "src": "/(.*)",
         "dest": "/"
-    }],
-    "scripts": {
-        "/": "dart run bin/jualbeli_backend.dart"
-    }
+    }]
 }
