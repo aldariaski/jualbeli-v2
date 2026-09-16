@@ -1,21 +1,35 @@
 import 'package:mysql_dart/mysql_dart.dart';
 
-extension IResultSetMysql1Compat on IResultSet {
-  int get insertId {
-    return lastInsertID.toInt();
-  }
-
+extension ResultSetRowCompat on ResultSetRow {
   Map<String, dynamic> toColumnMap() {
-    if (rows.isEmpty) {
-      return <String, dynamic>{};
+    final map = assoc();
+
+    // Normalize common MySQL/TiDB numeric values.
+    for (final key in map.keys.toList()) {
+      final value = map[key];
+
+      if (value is String) {
+        final intValue = int.tryParse(value);
+
+        if (intValue != null) {
+          map[key] = intValue;
+          continue;
+        }
+
+        final doubleValue = double.tryParse(value);
+
+        if (doubleValue != null) {
+          map[key] = doubleValue;
+        }
+      }
     }
 
-    return rows.first.assoc();
+    return map;
   }
 }
 
-extension ResultSetRowMysql1Compat on ResultSetRow {
-  Map<String, dynamic> toColumnMap() {
-    return assoc();
+extension IResultSetCompat on IResultSet {
+  int get insertId {
+    return lastInsertID.toInt();
   }
 }
