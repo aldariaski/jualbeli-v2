@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:mysql_dart/mysql_dart.dart';
+import 'mysql_compat.dart';
 
 class DatabaseConnection {
   DatabaseConnection._();

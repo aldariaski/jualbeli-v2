@@ -1,5 +1,6 @@
 import '../database/database.dart';
 import '../models/user.dart';
+import '../database/mysql_compat.dart';
 
 class UserRepository {
   final DatabaseConnection _database;

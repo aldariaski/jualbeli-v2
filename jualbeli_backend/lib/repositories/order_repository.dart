@@ -1,4 +1,5 @@
 import '../database/database.dart';
+import '../database/mysql_compat.dart';
 
 class OrderRepository {
   OrderRepository._();

@@ -1,5 +1,6 @@
 import '../database/database.dart';
 import '../models/product.dart';
+import '../database/mysql_compat.dart';
 
 class ProductRepository {
   final DatabaseConnection _database;
