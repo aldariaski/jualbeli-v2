@@ -1,22 +1,16 @@
 import 'package:mysql_dart/mysql_dart.dart';
 
-/// Compatibility with mysql1 ResultRow.toColumnMap()
 extension ResultSetRowCompat on ResultSetRow {
   Map<String, dynamic> toColumnMap() {
     final map = assoc();
 
-    return Map<String, dynamic>.fromEntries(
-      map.entries.map((entry) {
-        final value = entry.value;
-
-
-        return MapEntry(entry.key, value);
-      }),
-    );
+    return {
+      for (final entry in map.entries)
+        entry.key: _convertValue(entry.value),
+    };
   }
 }
 
-/// Compatibility for code that calls result.toColumnMap()
 extension IResultSetCompat on IResultSet {
   Map<String, dynamic> toColumnMap() {
     if (rows.isEmpty) {
@@ -26,9 +20,61 @@ extension IResultSetCompat on IResultSet {
     return rows.first.toColumnMap();
   }
 
-  /// Compatibility with mysql1:
-  /// result.insertId
   int get insertId {
-    return int.tryParse(lastInsertID.toString()) ?? 0;
+    return _toInt(lastInsertID);
   }
+}
+
+dynamic _convertValue(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is int) {
+    return value;
+  }
+
+  if (value is double) {
+    return value;
+  }
+
+  if (value is num) {
+    return value;
+  }
+
+  if (value is BigInt) {
+    return value.toInt();
+  }
+
+  if (value is String) {
+    final intValue = int.tryParse(value);
+    if (intValue != null) {
+      return intValue;
+    }
+
+    final doubleValue = double.tryParse(value);
+    if (doubleValue != null) {
+      return doubleValue;
+    }
+
+    return value;
+  }
+
+  return value;
+}
+
+int _toInt(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+
+  if (value is BigInt) {
+    return value.toInt();
+  }
+
+  if (value is num) {
+    return value.toInt();
+  }
+
+  return int.tryParse(value.toString()) ?? 0;
 }
