@@ -2,11 +2,16 @@
     "version": 2,
     "builds": [{
         "src": "/",
-        "use": "vercel-dart"
-        
+        "use": "vercel-dart",
+        "config": {
+            "distDir": "."
+        }
     }],
     "routes": [{
         "src": "/(.*)",
         "dest": "/"
-}]
+    }],
+    "scripts": {
+        "/": "dart run bin/jualbeli_backend.dart"
+    }
 }
