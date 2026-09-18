@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../widgets/product_card.dart';
 import '../../../product/data/product_model.dart';
-import '../../../product/data/product_api_service.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({
     super.key,
     required this.displayedProducts,
+    this.onProductUpdated,
   });
 
   final List<Product> displayedProducts;
+  final Future<void> Function(Product product)? onProductUpdated;
 
   @override
   State<ProductsPage> createState() => _ProductsPageState();
@@ -27,9 +28,7 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   @override
-  void didUpdateWidget(
-    covariant ProductsPage oldWidget,
-  ) {
+  void didUpdateWidget(covariant ProductsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.displayedProducts != widget.displayedProducts) {
@@ -41,12 +40,8 @@ class _ProductsPageState extends State<ProductsPage> {
   Widget build(BuildContext context) {
     if (_products.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 40,
-        ),
-        child: Text(
-          'No products found in this category.',
-        ),
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Text('No products found in this category.'),
       );
     }
 
@@ -61,6 +56,7 @@ class _ProductsPageState extends State<ProductsPage> {
         itemBuilder: (context, index) {
           return ProductCard(
             product: _products[index],
+            onProductUpdated: widget.onProductUpdated,
           );
         },
       ),

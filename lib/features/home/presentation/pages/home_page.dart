@@ -9,7 +9,6 @@ import '../widgets/categories.dart';
 import '../widgets/products_page.dart';
 import '../widgets/section_title.dart';
 
-import '../../../../app/router.dart';
 import 'package:go_router/go_router.dart';
 
 class HomePage extends StatefulWidget {
@@ -192,7 +191,10 @@ class _HomePageState extends State<HomePage> {
 
                       final displayedProducts = filterProducts(products);
 
-                      return ProductsPage(displayedProducts: displayedProducts);
+                      return ProductsPage(
+                        displayedProducts: displayedProducts,
+                        onProductUpdated: (_) => _refreshProducts(),
+                      );
                     },
                   ),
 

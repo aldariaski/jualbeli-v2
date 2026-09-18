@@ -92,8 +92,10 @@ class _PostProductPageState extends State<PostProductPage> {
           ? null
           : _imageController.text.trim();
 
+      final Product savedProduct;
+
       if (_isEditing) {
-        await api.updateProduct(
+        savedProduct = await api.updateProduct(
           id: widget.product!.id,
           name: _nameController.text.trim(),
           price: double.parse(_priceController.text.trim()),
@@ -101,7 +103,7 @@ class _PostProductPageState extends State<PostProductPage> {
           category: _category,
         );
       } else {
-        await api.createProduct(
+        savedProduct = await api.createProduct(
           name: _nameController.text.trim(),
           price: double.parse(_priceController.text.trim()),
           image: image,
@@ -123,7 +125,7 @@ class _PostProductPageState extends State<PostProductPage> {
         ),
       );
 
-      Navigator.pop(context, true);
+      Navigator.pop(context, savedProduct);
     } catch (e) {
       if (!mounted) return;
 

@@ -9,10 +9,12 @@ class ProductCard extends StatefulWidget {
     super.key,
     required this.product,
     this.onTap,
+    this.onProductUpdated,
   });
 
   final Product product;
   final VoidCallback? onTap;
+  final Future<void> Function(Product product)? onProductUpdated;
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -22,13 +24,15 @@ class _ProductCardState extends State<ProductCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTap ??
+      onTap:
+          widget.onTap ??
           () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ProductDetailPage(
                   product: widget.product,
+                  onProductUpdated: widget.onProductUpdated,
                 ),
               ),
             );
@@ -38,20 +42,17 @@ class _ProductCardState extends State<ProductCard> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade200,
-          ),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(12),
-                child: widget.product.image != null &&
+                borderRadius: BorderRadius.circular(12),
+                child:
+                    widget.product.image != null &&
                         widget.product.image!.isNotEmpty
                     ? Image.network(
                         widget.product.image!,
@@ -62,10 +63,7 @@ class _ProductCardState extends State<ProductCard> {
                     : const SizedBox(
                         width: double.infinity,
                         height: 150,
-                        child: Icon(
-                          Icons.image,
-                          size: 60,
-                        ),
+                        child: Icon(Icons.image, size: 60),
                       ),
               ),
 

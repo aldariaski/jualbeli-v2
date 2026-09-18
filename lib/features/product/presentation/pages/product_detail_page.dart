@@ -6,10 +6,28 @@ import '../../../cart/data/cart_service.dart';
 import '../../../auth/data/auth_storage.dart';
 import 'post_product_page.dart';
 
-class ProductDetailPage extends StatelessWidget {
+class ProductDetailPage extends StatefulWidget {
   final Product product;
+  final Future<void> Function(Product product)? onProductUpdated;
 
-  const ProductDetailPage({super.key, required this.product});
+  const ProductDetailPage({
+    super.key,
+    required this.product,
+    this.onProductUpdated,
+  });
+
+  @override
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends State<ProductDetailPage> {
+  late Product product;
+
+  @override
+  void initState() {
+    super.initState();
+    product = widget.product;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +47,19 @@ class ProductDetailPage extends StatelessWidget {
                 tooltip: 'Edit product',
                 icon: const Icon(Icons.edit_outlined),
                 onPressed: () async {
-                  await Navigator.push<bool>(
+                  final updatedProduct = await Navigator.push<Product>(
                     context,
                     MaterialPageRoute(
                       builder: (_) => PostProductPage(product: product),
                     ),
                   );
+
+                  if (updatedProduct != null && mounted) {
+                    setState(() {
+                      product = updatedProduct;
+                    });
+                    await widget.onProductUpdated?.call(updatedProduct);
+                  }
                 },
               );
             },
