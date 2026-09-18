@@ -78,7 +78,7 @@ class _ProductsCatalogPageState extends State<ProductsCatalogPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Categories(
                     selectedCategory: _category,
                     onCategorySelected: (value) =>
