@@ -13,74 +13,66 @@ import '../../../../app/router.dart';
 import 'package:go_router/go_router.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({
-    super.key,
-  });
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-  class _HomeActionButton extends StatelessWidget {
-    final IconData icon;
-    final String label;
-    final VoidCallback onTap;
+class _HomeActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
-    const _HomeActionButton({
-      required this.icon,
-      required this.label,
-      required this.onTap,
-    });
+  const _HomeActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
-    @override
-    Widget build(BuildContext context) {
-      final colorScheme = Theme.of(context).colorScheme;
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: 4,
-            horizontal: 4,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  size: 23,
-                  color: colorScheme.onPrimaryContainer,
-                ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(height: 7),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Icon(
+                icon,
+                size: 23,
+                color: colorScheme.onPrimaryContainer,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
+}
 
 class _HomePageState extends State<HomePage> {
-  final ProductApiService _productApiService =
-      ProductApiService();
+  final ProductApiService _productApiService = ProductApiService();
 
   String selectedCategory = 'All';
+  String searchQuery = '';
 
   late Future<List<Product>> _productsFuture;
 
@@ -88,29 +80,29 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _productsFuture =
-        _productApiService.getProducts();
+    _productsFuture = _productApiService.getProducts();
   }
 
-  List<Product> filterProducts(
-    List<Product> products,
-  ) {
-    if (selectedCategory == 'All') {
-      return products;
-    }
-
+  List<Product> filterProducts(List<Product> products) {
     return products
         .where(
           (product) =>
-              product.category == selectedCategory,
+              (selectedCategory == 'All' ||
+                  product.category == selectedCategory) &&
+              product.matchesSearch(searchQuery),
         )
         .toList();
   }
 
+  void _searchProducts(String query) {
+    setState(() {
+      searchQuery = query;
+    });
+  }
+
   Future<void> _refreshProducts() async {
     setState(() {
-      _productsFuture =
-          _productApiService.getProducts();
+      _productsFuture = _productApiService.getProducts();
     });
 
     await _productsFuture;
@@ -122,7 +114,10 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: ListView(
           children: [
-            AppSearchBar(onProductPageReturned: _refreshProducts),
+            AppSearchBar(
+              onChanged: _searchProducts,
+              onProductPageReturned: _refreshProducts,
+            ),
 
             Padding(
               padding: const EdgeInsets.all(20),
@@ -132,23 +127,16 @@ class _HomePageState extends State<HomePage> {
 
                   const Text(
                     'Welcome!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 8),
 
-                  const Text(
-                    'Find the best products for you.',
-                  ),
+                  const Text('Find the best products for you.'),
 
                   const SizedBox(height: 32),
 
-                  const SectionTitle(
-                    title: 'Categories',
-                  ),
+                  const SectionTitle(title: 'Categories'),
 
                   const SizedBox(height: 12),
 
@@ -173,18 +161,11 @@ class _HomePageState extends State<HomePage> {
 
                   FutureBuilder<List<Product>>(
                     future: _productsFuture,
-                    builder: (
-                      context,
-                      snapshot,
-                    ) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const SizedBox(
                           height: 240,
-                          child: Center(
-                            child:
-                                CircularProgressIndicator(),
-                          ),
+                          child: Center(child: CircularProgressIndicator()),
                         );
                       }
 
@@ -193,19 +174,13 @@ class _HomePageState extends State<HomePage> {
                           height: 240,
                           child: Center(
                             child: Column(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Unable to load products.',
-                                ),
+                                const Text('Unable to load products.'),
                                 const SizedBox(height: 12),
                                 ElevatedButton(
-                                  onPressed:
-                                      _refreshProducts,
-                                  child: const Text(
-                                    'Retry',
-                                  ),
+                                  onPressed: _refreshProducts,
+                                  child: const Text('Retry'),
                                 ),
                               ],
                             ),
@@ -213,16 +188,11 @@ class _HomePageState extends State<HomePage> {
                         );
                       }
 
-                      final products =
-                          snapshot.data ?? [];
+                      final products = snapshot.data ?? [];
 
-                      final displayedProducts =
-                          filterProducts(products);
+                      final displayedProducts = filterProducts(products);
 
-                      return ProductsPage(
-                        displayedProducts:
-                            displayedProducts,
-                      );
+                      return ProductsPage(displayedProducts: displayedProducts);
                     },
                   ),
 
@@ -238,9 +208,7 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.green.shade100,
-                      ),
+                      border: Border.all(color: Colors.green.shade100),
                     ),
                     child: Row(
                       children: [
@@ -267,7 +235,9 @@ class _HomePageState extends State<HomePage> {
                             icon: Icons.add_box_outlined,
                             label: 'Add Product',
                             onTap: () async {
-                              final result = await context.push('/products/add');
+                              final result = await context.push(
+                                '/products/add',
+                              );
 
                               if (result == true) {
                                 await _refreshProducts();
@@ -277,7 +247,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

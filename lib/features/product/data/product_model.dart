@@ -17,6 +17,17 @@ class Product {
     required this.sellerEmail,
   });
 
+  bool matchesSearch(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) return true;
+
+    return name.toLowerCase().contains(normalizedQuery) ||
+        category.toLowerCase().contains(normalizedQuery) ||
+        sellerName.toLowerCase().contains(normalizedQuery);
+  }
+  
+
   static const shopCategories = [
     'All',
     'Electronics',

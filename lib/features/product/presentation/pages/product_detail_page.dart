@@ -1,25 +1,45 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/product_model.dart';
 import '../../data/price_formatter.dart';
 import '../../../cart/data/cart_service.dart';
 import '../../../auth/data/auth_storage.dart';
-import '../../../cart/data/cart_service.dart';
+import 'post_product_page.dart';
 
 class ProductDetailPage extends StatelessWidget {
   final Product product;
 
-  const ProductDetailPage({
-    super.key,
-    required this.product,
-  });
+  const ProductDetailPage({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Product Details'),
+        actions: [
+          FutureBuilder<String?>(
+            future: AuthStorage.getCurrentUserEmail(),
+            builder: (context, snapshot) {
+              if (snapshot.data?.toLowerCase() !=
+                  product.sellerEmail.toLowerCase()) {
+                return const SizedBox.shrink();
+              }
+
+              return IconButton(
+                tooltip: 'Edit product',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () async {
+                  await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PostProductPage(product: product),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -34,18 +54,13 @@ class ProductDetailPage extends StatelessWidget {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: product.image != null &&
-                      product.image!.isNotEmpty
+              child: product.image != null && product.image!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: Image.network(
                         product.image!,
                         fit: BoxFit.cover,
-                        errorBuilder: (
-                          context,
-                          error,
-                          stackTrace,
-                        ) {
+                        errorBuilder: (context, error, stackTrace) {
                           return const Icon(
                             Icons.image_not_supported,
                             size: 80,
@@ -53,10 +68,7 @@ class ProductDetailPage extends StatelessWidget {
                         },
                       ),
                     )
-                  : const Icon(
-                      Icons.image,
-                      size: 80,
-                    ),
+                  : const Icon(Icons.image, size: 80),
             ),
 
             const SizedBox(height: 24),
@@ -64,10 +76,7 @@ class ProductDetailPage extends StatelessWidget {
             // Category
             Text(
               product.category,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
 
             const SizedBox(height: 8),
@@ -75,10 +84,7 @@ class ProductDetailPage extends StatelessWidget {
             // Name
             Text(
               product.name,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
@@ -86,20 +92,14 @@ class ProductDetailPage extends StatelessWidget {
             // Price
             Text(
               formatPrice(product.price),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 32),
 
             const Text(
               'Seller',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
@@ -112,8 +112,7 @@ class ProductDetailPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     product.sellerName,
@@ -125,9 +124,7 @@ class ProductDetailPage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     product.sellerEmail,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -142,54 +139,38 @@ class ProductDetailPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () async {
                   try {
-                    final email =
-                        await AuthStorage.getCurrentUserEmail();
+                    final email = await AuthStorage.getCurrentUserEmail();
 
                     if (email == null || email.isEmpty) {
                       if (!context.mounted) return;
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text(
-                            'Please login before adding to cart.',
-                          ),
+                          content: Text('Please login before adding to cart.'),
                         ),
                       );
 
                       return;
                     }
 
-                    await CartService.instance.addProduct(
-                      email,
-                      product,
-                    );
+                    await CartService.instance.addProduct(email, product);
 
                     if (!context.mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Product added to cart.',
-                        ),
-                      ),
+                      const SnackBar(content: Text('Product added to cart.')),
                     );
                   } catch (e) {
                     if (!context.mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Failed to add product: $e',
-                        ),
-                      ),
+                      SnackBar(content: Text('Failed to add product: $e')),
                     );
                   }
                 },
                 child: const Text(
                   'Add to Cart',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontSize: 16),
                 ),
               ),
             ),

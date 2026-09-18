@@ -5,7 +5,9 @@ import '../../data/product_api_service.dart';
 import '../../data/product_model.dart';
 
 class PostProductPage extends StatefulWidget {
-  const PostProductPage({super.key});
+  const PostProductPage({super.key, this.product});
+
+  final Product? product;
 
   @override
   State<PostProductPage> createState() => _PostProductPageState();
@@ -23,6 +25,24 @@ class _PostProductPageState extends State<PostProductPage> {
       .first;
 
   bool _posting = false;
+
+  bool get _isEditing => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final product = widget.product;
+    if (product != null) {
+      _nameController.text = product.name;
+      _priceController.text = product.price.toString();
+      _imageController.text = product.image ?? '';
+      if (Product.shopCategories.contains(product.category) &&
+          product.category != 'All') {
+        _category = product.category;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -45,11 +65,9 @@ class _PostProductPageState extends State<PostProductPage> {
     if (email == null || email.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User email not found.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User email not found.')));
 
       return;
     }
@@ -57,11 +75,9 @@ class _PostProductPageState extends State<PostProductPage> {
     if (sellerName == null || sellerName.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User name not found.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User name not found.')));
 
       return;
     }
@@ -71,22 +87,39 @@ class _PostProductPageState extends State<PostProductPage> {
     });
 
     try {
-      await ProductApiService().createProduct(
-        name: _nameController.text.trim(),
-        price: double.parse(_priceController.text.trim()),
-        image: _imageController.text.trim().isEmpty
-            ? null
-            : _imageController.text.trim(),
-        category: _category,
-        sellerEmail: email,
-        sellerName: sellerName.toString(),
-      );
+      final api = ProductApiService();
+      final image = _imageController.text.trim().isEmpty
+          ? null
+          : _imageController.text.trim();
+
+      if (_isEditing) {
+        await api.updateProduct(
+          id: widget.product!.id,
+          name: _nameController.text.trim(),
+          price: double.parse(_priceController.text.trim()),
+          image: image,
+          category: _category,
+        );
+      } else {
+        await api.createProduct(
+          name: _nameController.text.trim(),
+          price: double.parse(_priceController.text.trim()),
+          image: image,
+          category: _category,
+          sellerEmail: email,
+          sellerName: sellerName.toString(),
+        );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Product added successfully.'),
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'Product updated successfully.'
+                : 'Product added successfully.',
+          ),
         ),
       );
 
@@ -96,7 +129,9 @@ class _PostProductPageState extends State<PostProductPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to add product: $e'),
+          content: Text(
+            'Failed to ${_isEditing ? 'update' : 'add'} product: $e',
+          ),
         ),
       );
     } finally {
@@ -119,9 +154,7 @@ class _PostProductPageState extends State<PostProductPage> {
       hintText: hint,
       prefixIcon: prefix,
       suffixIcon: suffix,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -132,10 +165,7 @@ class _PostProductPageState extends State<PostProductPage> {
           width: 2,
         ),
       ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 
@@ -149,9 +179,7 @@ class _PostProductPageState extends State<PostProductPage> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).dividerColor,
-          ),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -204,9 +232,7 @@ class _PostProductPageState extends State<PostProductPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Product'),
-      ),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -219,9 +245,9 @@ class _PostProductPageState extends State<PostProductPage> {
 
               Text(
                 'Product Information',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 16),
@@ -232,9 +258,7 @@ class _PostProductPageState extends State<PostProductPage> {
                 decoration: _decoration(
                   label: 'Product name',
                   hint: 'Enter product name',
-                  prefix: const Icon(
-                    Icons.inventory_2_outlined,
-                  ),
+                  prefix: const Icon(Icons.inventory_2_outlined),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -256,14 +280,10 @@ class _PostProductPageState extends State<PostProductPage> {
                 decoration: _decoration(
                   label: 'Price',
                   hint: '5900000',
-                  prefix: const Icon(
-                    Icons.payments_outlined,
-                  ),
+                  prefix: const Icon(Icons.payments_outlined),
                 ),
                 validator: (value) {
-                  final price = double.tryParse(
-                    value?.trim() ?? '',
-                  );
+                  final price = double.tryParse(value?.trim() ?? '');
 
                   if (price == null || price <= 0) {
                     return 'Please enter a valid price.';
@@ -279,9 +299,7 @@ class _PostProductPageState extends State<PostProductPage> {
                 initialValue: _category,
                 decoration: _decoration(
                   label: 'Category',
-                  prefix: const Icon(
-                    Icons.category_outlined,
-                  ),
+                  prefix: const Icon(Icons.category_outlined),
                 ),
                 items: Product.shopCategories
                     .where((category) => category != 'All')
@@ -315,9 +333,7 @@ class _PostProductPageState extends State<PostProductPage> {
                 decoration: _decoration(
                   label: 'Image URL',
                   hint: 'https://example.com/product.jpg',
-                  prefix: const Icon(
-                    Icons.link_outlined,
-                  ),
+                  prefix: const Icon(Icons.link_outlined),
                 ),
               ),
 
@@ -337,12 +353,10 @@ class _PostProductPageState extends State<PostProductPage> {
                       ? const SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          'Add Product',
+                      : Text(
+                          _isEditing ? 'Save Changes' : 'Add Product',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

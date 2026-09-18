@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-
-import 'app_logo.dart';
-import '../../features/auth/data/auth_storage.dart';
-import '../../app/router.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../app/router.dart';
+import '../../features/auth/data/auth_storage.dart';
+import 'app_logo.dart';
 
 class AppSearchBar extends StatefulWidget {
   const AppSearchBar({
@@ -13,7 +13,6 @@ class AppSearchBar extends StatefulWidget {
   });
 
   final ValueChanged<String>? onChanged;
-
   final Future<void> Function()? onProductPageReturned;
 
   @override
@@ -21,110 +20,115 @@ class AppSearchBar extends StatefulWidget {
 }
 
 class _AppSearchBarState extends State<AppSearchBar> {
+  Future<void> _openAddProduct() async {
+    await context.push('/products/add');
+
+    if (!mounted) return;
+    await widget.onProductPageReturned?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: Colors.green.shade50,
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const AppLogo(size: 30),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 700;
+        final horizontalPadding = isMobile ? 12.0 : 20.0;
 
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: TextField(
-              onChanged: widget.onChanged,
-              decoration: InputDecoration(
-                hintText: 'Search products...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 16,
+        return Container(
+          width: double.infinity,
+          color: Colors.green.shade50,
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: isMobile ? 12 : 20,
+          ),
+          child: isMobile
+              ? Column(
+                  children: [
+                    Row(
+                      children: [
+                        const AppLogo(size: 30),
+                        const Spacer(),
+                        _buildActions(compact: true),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSearchField(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const AppLogo(size: 30),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildSearchField()),
+                    const SizedBox(width: 8),
+                    _buildActions(compact: false),
+                  ],
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
+        );
+      },
+    );
+  }
 
-          const SizedBox(width: 4),
+  Widget _buildSearchField() {
+    return TextField(
+      onChanged: widget.onChanged,
+      decoration: InputDecoration(
+        hintText: 'Search products...',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
 
-          IconButton(
-            onPressed: () {
-              context.push('/cart');
-            },
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-              size: 24,
-            ),
-          ),
-
-          IconButton(
-            onPressed: () {
-              context.push('/orders');
-            },
-            icon: const Icon(
-              Icons.receipt_long_outlined,
-              size: 24,
-            ),
-          ),
-
-          IconButton(
-            onPressed: () async {
-              await context.push('/products/add');
-
-              if (!context.mounted) return;
-
-              await widget.onProductPageReturned?.call();
-            },
-            icon: const Icon(
-              Icons.add_box_outlined,
-              size: 24,
-            ),
-          ),
-
+  Widget _buildActions({required bool compact}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Cart',
+          onPressed: () => context.push('/cart'),
+          icon: const Icon(Icons.shopping_cart_outlined),
+        ),
+        IconButton(
+          tooltip: 'Orders',
+          onPressed: () => context.push('/orders'),
+          icon: const Icon(Icons.receipt_long_outlined),
+        ),
+        IconButton(
+          tooltip: 'Add product',
+          onPressed: _openAddProduct,
+          icon: const Icon(Icons.add_box_outlined),
+        ),
+        if (!compact)
           FutureBuilder<String?>(
             future: AuthStorage.getCurrentUserName(),
             builder: (context, snapshot) {
-              print('Username: ${snapshot.data}');
-              print('Error: ${snapshot.error}');
-              print(
-                'Connection: ${snapshot.connectionState}',
-              );
-
-              final userName =
-                  snapshot.data ?? 'User (Logged Out)';
-
               return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  snapshot.data ?? 'User (Logged Out)',
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: Text(userName),
               );
             },
           ),
+        IconButton(
+          tooltip: 'Logout',
+          onPressed: () async {
+            await AuthStorage.logout();
 
-          IconButton(
-            onPressed: () async {
-              await AuthStorage.logout();
-
-              if (!context.mounted) return;
-
-              context.go(AppRouter.login);
-            },
-            icon: const Icon(
-              Icons.logout,
-              size: 24,
-            ),
-          ),
-        ],
-      ),
+            if (!mounted) return;
+            context.go(AppRouter.login);
+          },
+          icon: const Icon(Icons.logout),
+        ),
+      ],
     );
   }
 }

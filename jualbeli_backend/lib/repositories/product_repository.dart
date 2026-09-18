@@ -5,9 +5,8 @@ import '../database/mysql_compat.dart';
 class ProductRepository {
   final DatabaseConnection _database;
 
-  ProductRepository({
-    DatabaseConnection? database,
-  }) : _database = database ?? DatabaseConnection.instance;
+  ProductRepository({DatabaseConnection? database})
+    : _database = database ?? DatabaseConnection.instance;
 
   Future<Product> createProduct({
     required String name,
@@ -41,17 +40,13 @@ class ProductRepository {
     final insertedId = result.insertId;
 
     if (insertedId == 0) {
-      throw Exception(
-        'Failed to create product.',
-      );
+      throw Exception('Failed to create product.');
     }
 
     final newProduct = await findById(insertedId);
 
     if (newProduct == null) {
-      throw Exception(
-        'Failed to fetch newly created product.',
-      );
+      throw Exception('Failed to fetch newly created product.');
     }
 
     return newProduct;
@@ -119,5 +114,31 @@ class ProductRepository {
       'SellerName': fields['SellerName'],
       'SellerEmail': fields['SellerEmail'],
     });
+  }
+
+  Future<Product?> updateProduct({
+    required int id,
+    required String ownerEmail,
+    required String name,
+    required double price,
+    String? image,
+    required String category,
+  }) async {
+    const sql = '''
+      UPDATE Products
+      SET Name = ?, Price = ?, Image = ?, Category = ?
+      WHERE Id = ? AND SellerEmail = ?
+    ''';
+
+    await _database.execute(sql, [
+      name,
+      price,
+      image,
+      category,
+      id,
+      ownerEmail,
+    ]);
+
+    return findById(id);
   }
 }
