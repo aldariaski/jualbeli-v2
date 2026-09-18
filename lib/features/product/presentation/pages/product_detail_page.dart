@@ -146,11 +146,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.sellerEmail,
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
                 ],
               ),
             ),

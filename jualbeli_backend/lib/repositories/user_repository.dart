@@ -5,9 +5,8 @@ import '../database/mysql_compat.dart';
 class UserRepository {
   final DatabaseConnection _database;
 
-  UserRepository({
-    DatabaseConnection? database,
-  }) : _database = database ?? DatabaseConnection.instance;
+  UserRepository({DatabaseConnection? database})
+    : _database = database ?? DatabaseConnection.instance;
 
   Future<User?> findByEmail(String email) async {
     const sql = '''
@@ -53,11 +52,7 @@ class UserRepository {
       VALUES (?, ?, ?)
     ''';
 
-    final result = await _database.execute(sql, [
-      name,
-      email,
-      passwordHash,
-    ]);
+    final result = await _database.execute(sql, [name, email, passwordHash]);
 
     final insertedId = result.insertId;
 
@@ -72,5 +67,19 @@ class UserRepository {
     }
 
     return newUser;
+  }
+
+  Future<bool> updatePassword({
+    required String email,
+    required String passwordHash,
+  }) async {
+    const sql = '''
+      UPDATE Users
+      SET PasswordHash = ?
+      WHERE Email = ?
+    ''';
+
+    final result = await _database.execute(sql, [passwordHash, email]);
+    return result.affectedRows > BigInt.zero;
   }
 }
