@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../auth/data/auth_storage.dart';
 import '../../../orders/data/order_model.dart';
 import '../../../orders/data/order_service.dart';
 import '../../../product/data/price_formatter.dart';
@@ -27,12 +28,21 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> _load() async {
     try {
+      final currentEmail = await AuthStorage.getCurrentUserEmail();
+      if (currentEmail == null || currentEmail.trim().isEmpty) {
+        throw Exception('User email not found.');
+      }
+
       final balance = await _service.getBalance();
       final orders = await OrderService.instance.getOrders('');
+      final normalizedEmail = currentEmail.trim().toLowerCase();
       if (!mounted) return;
       setState(() {
         _balance = balance;
-        _orders = orders.where((order) => order.status.toLowerCase() == 'pending').toList();
+        _orders = orders.where((order) {
+          return order.status.toLowerCase() == 'pending' &&
+              order.email.trim().toLowerCase() == normalizedEmail;
+        }).toList();
         _loading = false;
         _error = null;
       });
