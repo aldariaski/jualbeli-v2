@@ -55,10 +55,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _pay(double amount) async {
+  Future<void> _pay() async {
     setState(() => _paying = true);
     try {
-      await PaymentService.instance.payOrder(widget.order.id, amount);
+      await PaymentService.instance.payOrder(widget.order.id);
       if (!mounted) return;
       setState(() => _future = _load());
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,7 +179,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     child: SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _paying ? null : () => _pay(_totalFrom(data)),
+                        onPressed: _paying ? null : _pay,
                         icon: _paying
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.payment),

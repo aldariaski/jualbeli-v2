@@ -5,6 +5,7 @@ import '../../../orders/data/order_model.dart';
 import '../../../orders/data/order_service.dart';
 import '../../../product/data/price_formatter.dart';
 import '../../data/payment_service.dart';
+import '../../data/payment_record.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key});
@@ -17,6 +18,7 @@ class _PaymentPageState extends State<PaymentPage> {
   final _service = PaymentService.instance;
   double _balance = 0;
   List<Order> _orders = [];
+  List<PaymentRecord> _history = [];
   bool _loading = true;
   String? _error;
 
@@ -35,6 +37,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
       final balance = await _service.getBalance();
       final orders = await OrderService.instance.getOrders('');
+      final history = await _service.getPaymentHistory();
       final normalizedEmail = currentEmail.trim().toLowerCase();
       if (!mounted) return;
       setState(() {
@@ -43,6 +46,7 @@ class _PaymentPageState extends State<PaymentPage> {
           return order.status.toLowerCase() == 'pending' &&
               order.email.trim().toLowerCase() == normalizedEmail;
         }).toList();
+        _history = history;
         _loading = false;
         _error = null;
       });
@@ -74,13 +78,22 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> _pay(Order order) async {
     try {
-      await _service.payOrder(order.id, order.totalAmount);
+      await _service.payOrder(order.id);
       if (!mounted) return;
       await _load();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order #${order.id} is paid.')));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) return '-';
+    final date = value.toLocal();
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year} ${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -116,6 +129,27 @@ class _PaymentPageState extends State<PaymentPage> {
                           title: Text('Order #${order.id}'),
                           subtitle: Text('Payment pending'),
                           trailing: FilledButton(onPressed: () => _pay(order), child: Text(formatPrice(order.totalAmount))),
+                        ),
+                      )),
+                  const SizedBox(height: 28),
+                  const Text('Payment history', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (_history.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Text('No completed payments yet.'),
+                    ),
+                  ..._history.map((payment) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.check_circle_outline),
+                          title: Text('Order #${payment.orderId}'),
+                          subtitle: Text(
+                            '${payment.status} • ${payment.method}\n${_formatDate(payment.paidAt)}',
+                          ),
+                          trailing: Text(
+                            formatPrice(payment.amount),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       )),
                 ],

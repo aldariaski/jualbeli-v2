@@ -28,13 +28,13 @@ class OrderRoutes {
     );
 
     router.get(
-      '/<id|[0-9]+>',
-      _getOrder,
+      '/payments',
+      _getPaymentHistory,
     );
 
-    router.post(
-      '/<id|[0-9]+>/pay',
-      _payOrder,
+    router.get(
+      '/<id|[0-9]+>',
+      _getOrder,
     );
 
     return router;
@@ -171,21 +171,17 @@ class OrderRoutes {
     }
   }
 
-  Future<Response> _payOrder(
-    Request request,
-    String id,
-  ) async {
+  Future<Response> _getPaymentHistory(Request request) async {
     try {
-      await _repository.payOrder(
-        orderId: int.parse(id),
-        email: request.context['userEmail'] as String,
+      final payments = await _repository.getPaymentHistoryForUser(
+        request.context['userEmail'] as String,
       );
-
-      return _jsonResponse(200, {'message': 'Order paid successfully.'});
+      return _jsonResponse(200, {'payments': payments});
     } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '');
-      final statusCode = message == 'Order not found.' ? 404 : 409;
-      return _jsonResponse(statusCode, {'message': message});
+      return _jsonResponse(500, {
+        'message': 'Failed to load payment history.',
+        'details': e.toString(),
+      });
     }
   }
 

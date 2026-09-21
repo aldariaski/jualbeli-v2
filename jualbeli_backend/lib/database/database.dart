@@ -296,6 +296,32 @@ class DatabaseConnection {
     });
   }
 
+  Future<IResultSet> transactionExecute(
+    MySQLConnection connection,
+    String sql, [
+    List<Object?>? positionalParams,
+  ]) {
+    return connection.execute(
+      _namedSql(sql, positionalParams),
+      _namedParams(positionalParams),
+    );
+  }
+
+  String _namedSql(String sql, List<Object?>? params) {
+    var converted = sql;
+    for (var index = 0; index < (params?.length ?? 0); index++) {
+      converted = converted.replaceFirst('?', ':p$index');
+    }
+    return converted;
+  }
+
+  Map<String, dynamic> _namedParams(List<Object?>? params) {
+    return {
+      for (var index = 0; index < (params?.length ?? 0); index++)
+        'p$index': params![index],
+    };
+  }
+
   Future<void> close() async {
     final connection = _connection;
 

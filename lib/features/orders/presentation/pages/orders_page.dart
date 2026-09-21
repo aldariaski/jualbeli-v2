@@ -45,7 +45,7 @@ class _OrdersPageState extends State<OrdersPage> {
   Future<void> _pay(Order order) async {
     setState(() => _payingOrderId = order.id);
     try {
-      await PaymentService.instance.payOrder(order.id, order.totalAmount);
+      await PaymentService.instance.payOrder(order.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Order #${order.id} is paid.')),

@@ -1,61 +1,83 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../auth/data/auth_storage.dart';
+import 'payment_record.dart';
 
 class PaymentService {
   PaymentService._();
 
   static final instance = PaymentService._();
-  static const _balanceKeyPrefix = 'wallet_balance_';
   static const baseUrl = 'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   Future<double> getBalance() async {
-    final key = await _userBalanceKey();
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(key) ?? 0;
+    final response = await _authorizedGet('/payments/balance');
+    return (response['balance'] as num).toDouble();
   }
 
   Future<double> topUp(double amount) async {
     if (amount <= 0) throw Exception('Top-up amount must be greater than zero.');
-    final balance = await getBalance() + amount;
-    final key = await _userBalanceKey();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(key, balance);
-    return balance;
+    final response = await _authorizedPost('/payments/top-up', {'amount': amount});
+    return (response['balance'] as num).toDouble();
   }
 
-  Future<void> payOrder(int orderId, double amount) async {
-    final balance = await getBalance();
-    if (balance < amount) throw Exception('Insufficient wallet balance.');
+  Future<void> payOrder(int orderId) async {
+    await _authorizedPost('/payments/orders/$orderId/pay', {});
+  }
 
+  Future<List<PaymentRecord>> getPaymentHistory() async {
     final token = await AuthStorage.getToken();
-    if (token == null || token.isEmpty) throw Exception('Authentication token not found.');
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication token not found.');
+    }
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/orders/$orderId/pay'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({}),
+    final response = await http.get(
+      Uri.parse('$baseUrl/orders/payments'),
+      headers: {'Authorization': 'Bearer $token'},
     );
-
     if (response.statusCode != 200) {
       throw Exception(_message(response.body, response.statusCode));
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final key = await _userBalanceKey();
-    await prefs.setDouble(key, balance - amount);
-  }
-
-  Future<String> _userBalanceKey() async {
-    final email = await AuthStorage.getCurrentUserEmail();
-    if (email == null || email.trim().isEmpty) {
-      throw Exception('Authentication user not found.');
+    final data = jsonDecode(response.body);
+    if (data is! Map || data['payments'] is! List) {
+      throw Exception('Invalid payment history response.');
     }
 
-    return '$_balanceKeyPrefix${email.trim().toLowerCase()}';
+    return (data['payments'] as List)
+        .map((item) => PaymentRecord.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> _authorizedGet(String path) async {
+    final token = await _token();
+    final response = await http.get(Uri.parse('$baseUrl$path'), headers: {'Authorization': 'Bearer $token'});
+    return _decodeResponse(response);
+  }
+
+  Future<Map<String, dynamic>> _authorizedPost(String path, Map<String, dynamic> body) async {
+    final token = await _token();
+    final response = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    return _decodeResponse(response);
+  }
+
+  Future<String> _token() async {
+    final token = await AuthStorage.getToken();
+    if (token == null || token.isEmpty) throw Exception('Authentication token not found.');
+    return token;
+  }
+
+  Map<String, dynamic> _decodeResponse(http.Response response) {
+    final data = jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_message(response.body, response.statusCode));
+    }
+    if (data is! Map<String, dynamic>) throw Exception('Invalid payment response.');
+    return data;
   }
 
   String _message(String body, int statusCode) {

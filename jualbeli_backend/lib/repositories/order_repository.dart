@@ -233,45 +233,30 @@ class OrderRepository {
     };
   }
 
-  Future<void> payOrder({
-    required int orderId,
-    required String email,
-  }) async {
-    final orderResult = await _db.query(
+  Future<List<Map<String, dynamic>>> getPaymentHistoryForUser(
+    String email,
+  ) async {
+    final result = await _db.query(
       '''
-      SELECT total_amount, status
-      FROM Orders
-      WHERE id = ? AND email = ?
+      SELECT id, order_id, amount, method, status, paid_at
+      FROM Payments
+      WHERE payer_email = ?
+      ORDER BY paid_at DESC, id DESC
       ''',
-      [orderId, email],
+      [email],
     );
 
-    if (orderResult.rows.isEmpty) {
-      throw Exception('Order not found.');
-    }
-
-    final order = orderResult.rows.first.toColumnMap();
-    final status = order['status']?.toString() ?? '';
-    if (status.toLowerCase() != 'pending') {
-      throw Exception('Order is already ${status.toLowerCase()}.');
-    }
-
-    await _db.execute(
-      '''
-      INSERT INTO Payments (order_id, payer_email, amount, method, status)
-      VALUES (?, ?, ?, 'Wallet', 'Paid')
-      ''',
-      [orderId, email, order['total_amount']],
-    );
-
-    await _db.execute(
-      '''
-      UPDATE Orders
-      SET status = 'Paid'
-      WHERE id = ? AND email = ? AND status = 'Pending'
-      ''',
-      [orderId, email],
-    );
+    return result.rows.map((row) {
+      final fields = row.toColumnMap();
+      return {
+        'id': _int(fields['id']),
+        'orderId': _int(fields['order_id']),
+        'amount': _number(fields['amount']),
+        'method': fields['method']?.toString() ?? 'Wallet',
+        'status': fields['status']?.toString() ?? '',
+        'paidAt': fields['paid_at']?.toString(),
+      };
+    }).toList();
   }
 
   int _int(dynamic value) {

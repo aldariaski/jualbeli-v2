@@ -174,3 +174,34 @@ CREATE TABLE IF NOT EXISTS Payments (
     CONSTRAINT FK_Payments_Orders
         FOREIGN KEY (order_id) REFERENCES Orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ============================================================
+-- Wallets and wallet transaction ledger
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS Wallets (
+    id INT AUTO_INCREMENT NOT NULL,
+    email VARCHAR(320) NOT NULL,
+    balance DECIMAL(30,2) NOT NULL DEFAULT 0,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+        ON UPDATE CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT PK_Wallets PRIMARY KEY (id),
+    CONSTRAINT UQ_Wallets_Email UNIQUE (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS WalletTransactions (
+    id INT AUTO_INCREMENT NOT NULL,
+    email VARCHAR(320) NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    amount DECIMAL(30,2) NOT NULL,
+    order_id INT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'Completed',
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT PK_WalletTransactions PRIMARY KEY (id),
+    CONSTRAINT FK_WalletTransactions_Orders
+        FOREIGN KEY (order_id) REFERENCES Orders(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
