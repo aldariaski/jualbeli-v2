@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../auth/data/auth_storage.dart';
 import '../../../product/data/price_formatter.dart';
+import '../../../payment/data/payment_service.dart';
 import '../../data/order_model.dart';
 import '../../data/order_service.dart';
 
@@ -19,6 +20,7 @@ class OrderDetailPage extends StatefulWidget {
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
   late Future<Map<String, dynamic>> _future;
+  bool _paying = false;
 
   @override
   void initState() {
@@ -51,6 +53,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         '${date.year} '
         '${date.hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pay(double amount) async {
+    setState(() => _paying = true);
+    try {
+      await PaymentService.instance.payOrder(widget.order.id, amount);
+      if (!mounted) return;
+      setState(() => _future = _load());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order #${widget.order.id} is paid.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
   }
 
   @override
@@ -151,6 +173,20 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 const SizedBox(height: 20),
 
                 _buildTotal(data),
+                if ((data['status']?.toString() ?? widget.order.status).toLowerCase() == 'pending')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _paying ? null : () => _pay(_totalFrom(data)),
+                        icon: _paying
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.payment),
+                        label: const Text('Pay order'),
+                      ),
+                    ),
+                  ),
               ],
             ),
           );
@@ -279,12 +315,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Widget _buildTotal(Map<String, dynamic> data) {
-    final total = data['totalAmount'] is num
-        ? (data['totalAmount'] as num).toDouble()
-        : double.tryParse(
-              data['totalAmount']?.toString() ?? '',
-            ) ??
-            widget.order.totalAmount;
+    final total = _totalFrom(data);
 
     return Card(
       child: Padding(
@@ -310,5 +341,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ),
       ),
     );
+  }
+
+  double _totalFrom(Map<String, dynamic> data) {
+    return data['totalAmount'] is num
+        ? (data['totalAmount'] as num).toDouble()
+        : double.tryParse(
+              data['totalAmount']?.toString() ?? '',
+            ) ??
+            widget.order.totalAmount;
+
   }
 }

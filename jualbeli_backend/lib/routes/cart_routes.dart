@@ -122,12 +122,19 @@ class CartRoutes {
     } catch (e) {
       print('POST /cart error: $e');
 
+      final message = e.toString().replaceFirst('Exception: ', '');
+      final statusCode = message == 'You cannot buy a product from yourself.'
+          ? 409
+          : message == 'Product not found.'
+              ? 404
+              : 500;
+
       return _jsonResponse(
-        500,
+        statusCode,
         {
           'message':
               'Failed to add product to cart.',
-          'error': e.toString(),
+          'error': message,
         },
       );
     }

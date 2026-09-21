@@ -173,6 +173,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       return;
                     }
 
+                    if (email.trim().toLowerCase() ==
+                        product.sellerEmail.trim().toLowerCase()) {
+                      if (!context.mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('You cannot buy your own product.'),
+                        ),
+                      );
+                      return;
+                    }
+
                     await CartService.instance.addProduct(email, product);
 
                     if (!context.mounted) return;

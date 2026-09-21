@@ -145,7 +145,11 @@ class _TopUpDialogState extends State<_TopUpDialog> {
                   if (key == 'back') return setState(() { if (_value.isNotEmpty) _value = _value.substring(0, _value.length - 1); });
                   _add(key);
                 },
-                icon: Icon(key == 'back' ? Icons.backspace_outlined : key == 'C' ? Icons.clear : Icons.circle, size: key.length > 1 ? 24 : 10),
+                icon: key == 'back'
+                  ? const Icon(Icons.backspace_outlined)
+                  : key == 'C'
+                    ? const Icon(Icons.clear)
+                    : Text(key, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 tooltip: key == 'back' ? 'Delete' : key,
               )).toList()),
       ]),

@@ -53,6 +53,30 @@ class CartRepository {
     String userEmail,
     int productId,
   ) async {
+    final productResult = await _database.query(
+      '''
+      SELECT SellerEmail
+      FROM Products
+      WHERE Id = ?
+      ''',
+      [productId],
+    );
+
+    if (productResult.rows.isEmpty) {
+      throw Exception('Product not found.');
+    }
+
+    final sellerEmail = productResult.rows.first
+        .toColumnMap()['SellerEmail']
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    if (sellerEmail != null &&
+        sellerEmail.isNotEmpty &&
+        sellerEmail == userEmail.trim().toLowerCase()) {
+      throw Exception('You cannot buy a product from yourself.');
+    }
+
     const sql = '''
       INSERT INTO CartItems (
         UserEmail,

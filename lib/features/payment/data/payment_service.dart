@@ -9,19 +9,21 @@ class PaymentService {
   PaymentService._();
 
   static final instance = PaymentService._();
-  static const _balanceKey = 'wallet_balance';
+  static const _balanceKeyPrefix = 'wallet_balance_';
   static const baseUrl = 'https://jualbeli-v2-aldariaski-api.vercel.app';
 
   Future<double> getBalance() async {
+    final key = await _userBalanceKey();
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_balanceKey) ?? 0;
+    return prefs.getDouble(key) ?? 0;
   }
 
   Future<double> topUp(double amount) async {
     if (amount <= 0) throw Exception('Top-up amount must be greater than zero.');
     final balance = await getBalance() + amount;
+    final key = await _userBalanceKey();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_balanceKey, balance);
+    await prefs.setDouble(key, balance);
     return balance;
   }
 
@@ -43,7 +45,17 @@ class PaymentService {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_balanceKey, balance - amount);
+    final key = await _userBalanceKey();
+    await prefs.setDouble(key, balance - amount);
+  }
+
+  Future<String> _userBalanceKey() async {
+    final email = await AuthStorage.getCurrentUserEmail();
+    if (email == null || email.trim().isEmpty) {
+      throw Exception('Authentication user not found.');
+    }
+
+    return '$_balanceKeyPrefix${email.trim().toLowerCase()}';
   }
 
   String _message(String body, int statusCode) {

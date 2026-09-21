@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../auth/data/auth_storage.dart';
 import '../../../product/data/price_formatter.dart';
+import '../../../payment/data/payment_service.dart';
 import '../../data/order_model.dart';
 import '../../data/order_service.dart';
 import 'order_detail_page.dart';
@@ -15,6 +16,7 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> {
   late Future<List<Order>> _future;
+  int? _payingOrderId;
 
   @override
   void initState() {
@@ -38,6 +40,26 @@ class _OrdersPageState extends State<OrdersPage> {
     });
 
     await _future;
+  }
+
+  Future<void> _pay(Order order) async {
+    setState(() => _payingOrderId = order.id);
+    try {
+      await PaymentService.instance.payOrder(order.id, order.totalAmount);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order #${order.id} is paid.')),
+      );
+      await _refresh();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _payingOrderId = null);
+    }
   }
 
   String _formatDate(DateTime? value) {
@@ -148,8 +170,18 @@ class _OrdersPageState extends State<OrdersPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        const Icon(Icons.chevron_right),
+                        if (order.status.toLowerCase() == 'pending')
+                          SizedBox(
+                            height: 32,
+                            child: FilledButton(
+                              onPressed: _payingOrderId == order.id ? null : () => _pay(order),
+                              child: _payingOrderId == order.id
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Text('Pay'),
+                            ),
+                          )
+                        else
+                          const Icon(Icons.chevron_right),
                       ],
                     ),
                     onTap: () {
