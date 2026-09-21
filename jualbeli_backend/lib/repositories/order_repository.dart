@@ -157,7 +157,7 @@ class OrderRepository {
         'email': fields['email']?.toString() ?? '',
         'totalAmount': _number(fields['total_amount']),
         'status': fields['status']?.toString() ?? '',
-        'createdAt': fields['created_at']?.toString(),
+        'createdAt': _utcIso(fields['created_at']),
       };
     }).toList();
   }
@@ -214,7 +214,7 @@ class OrderRepository {
       'email': order['email']?.toString() ?? '',
       'totalAmount': _number(order['total_amount']),
       'status': order['status']?.toString() ?? '',
-      'createdAt': order['created_at']?.toString(),
+      'createdAt': _utcIso(order['created_at']),
 
       'items': itemResult.rows.map((row) {
         final fields = row.toColumnMap();
@@ -254,7 +254,7 @@ class OrderRepository {
         'amount': _number(fields['amount']),
         'method': fields['method']?.toString() ?? 'Wallet',
         'status': fields['status']?.toString() ?? '',
-        'paidAt': fields['paid_at']?.toString(),
+        'paidAt': _utcIso(fields['paid_at']),
       };
     }).toList();
   }
@@ -273,6 +273,15 @@ class OrderRepository {
     }
 
     return int.tryParse(value.toString()) ?? 0;
+  }
+
+  String? _utcIso(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim().replaceFirst(' ', 'T');
+    if (text.isEmpty) return null;
+    final hasTimezone = text.endsWith('Z') || RegExp(r'[+-]\d\d:\d\d$').hasMatch(text);
+    final parsed = DateTime.tryParse(hasTimezone ? text : '${text}Z');
+    return parsed?.toUtc().toIso8601String();
   }
 
   double _number(dynamic value) {

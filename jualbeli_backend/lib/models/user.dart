@@ -19,11 +19,14 @@ class User {
       name: map['Name'] as String,
       email: map['Email'] as String,
       passwordHash: map['PasswordHash'] as String,
-      createdAt: map['CreatedAt'] == null
-          ? null
-          : DateTime.parse(
-              map['CreatedAt'].toString(),
-            ),
+      createdAt: _parseUtc(map['CreatedAt']),
     );
+  }
+
+  static DateTime? _parseUtc(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim().replaceFirst(' ', 'T');
+    final hasTimezone = text.endsWith('Z') || RegExp(r'[+-]\d\d:\d\d$').hasMatch(text);
+    return DateTime.tryParse(hasTimezone ? text : '${text}Z')?.toUtc();
   }
 }

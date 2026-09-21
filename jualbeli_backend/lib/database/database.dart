@@ -135,6 +135,9 @@ class DatabaseConnection {
 
       await connection.connect();
 
+      // TiDB timestamps are stored and returned in UTC for the API.
+      await connection.execute("SET time_zone = '+00:00'");
+
       _connection = connection;
 
       print('========================================');
