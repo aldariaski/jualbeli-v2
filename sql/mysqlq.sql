@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS Users (
     Name VARCHAR(100) NOT NULL,
     Email VARCHAR(255) NOT NULL,
     PasswordHash VARCHAR(255) NOT NULL,
-    CreatedAt DATETIME(7) NOT NULL 
-        DEFAULT CURRENT_TIMESTAMP(7),
+    CreatedAt DATETIME(6) NOT NULL
+        DEFAULT CURRENT_TIMESTAMP(6),
 
     CONSTRAINT PK_Users
         PRIMARY KEY (Id)
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS Orders (
     total_amount DECIMAL(30,2) NOT NULL,
     status VARCHAR(30) NOT NULL 
         DEFAULT 'Pending',
-    created_at DATETIME(7) NOT NULL 
-        DEFAULT CURRENT_TIMESTAMP(7),
+    created_at DATETIME(6) NOT NULL
+        DEFAULT CURRENT_TIMESTAMP(6),
 
     CONSTRAINT PK_Orders
         PRIMARY KEY (id)
@@ -149,4 +149,28 @@ CREATE TABLE IF NOT EXISTS CartItems (
 
     CONSTRAINT FK_CartItems_Products 
         FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ============================================================
+-- Payments
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS Payments (
+    id INT AUTO_INCREMENT NOT NULL,
+    order_id INT NOT NULL,
+    payer_email VARCHAR(320) NOT NULL,
+    amount DECIMAL(30,2) NOT NULL,
+    method VARCHAR(30) NOT NULL DEFAULT 'Wallet',
+    status VARCHAR(30) NOT NULL DEFAULT 'Paid',
+    paid_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT PK_Payments
+        PRIMARY KEY (id),
+
+    CONSTRAINT UQ_Payments_Order
+        UNIQUE (order_id),
+
+    CONSTRAINT FK_Payments_Orders
+        FOREIGN KEY (order_id) REFERENCES Orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

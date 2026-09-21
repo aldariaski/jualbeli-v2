@@ -16,7 +16,8 @@ class OrderRepository {
       SELECT
         c.ProductId,
         c.Quantity,
-        p.Price
+        p.Price,
+        p.SellerEmail
       FROM CartItems c
       INNER JOIN Products p
         ON p.Id = c.ProductId
@@ -29,6 +30,15 @@ class OrderRepository {
     // mysql_dart uses result.rows for actual database rows.
     if (cartResult.rows.isEmpty) {
       throw Exception('Cart is empty.');
+    }
+
+    final hasSelfPurchase = cartResult.rows.any((row) {
+      final sellerEmail = row.toColumnMap()['SellerEmail']?.toString().trim().toLowerCase();
+      return sellerEmail != null && sellerEmail.isNotEmpty && sellerEmail == email.trim().toLowerCase();
+    });
+
+    if (hasSelfPurchase) {
+      throw Exception('You cannot buy a product from yourself.');
     }
 
     final totalResult = await _db.query(
@@ -221,6 +231,47 @@ class OrderRepository {
         };
       }).toList(),
     };
+  }
+
+  Future<void> payOrder({
+    required int orderId,
+    required String email,
+  }) async {
+    final orderResult = await _db.query(
+      '''
+      SELECT total_amount, status
+      FROM Orders
+      WHERE id = ? AND email = ?
+      ''',
+      [orderId, email],
+    );
+
+    if (orderResult.rows.isEmpty) {
+      throw Exception('Order not found.');
+    }
+
+    final order = orderResult.rows.first.toColumnMap();
+    final status = order['status']?.toString() ?? '';
+    if (status.toLowerCase() != 'pending') {
+      throw Exception('Order is already ${status.toLowerCase()}.');
+    }
+
+    await _db.execute(
+      '''
+      INSERT INTO Payments (order_id, payer_email, amount, method, status)
+      VALUES (?, ?, ?, 'Wallet', 'Paid')
+      ''',
+      [orderId, email, order['total_amount']],
+    );
+
+    await _db.execute(
+      '''
+      UPDATE Orders
+      SET status = 'Paid'
+      WHERE id = ? AND email = ? AND status = 'Pending'
+      ''',
+      [orderId, email],
+    );
   }
 
   int _int(dynamic value) {

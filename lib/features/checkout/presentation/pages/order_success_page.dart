@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../payment/presentation/pages/payment_page.dart';
+
 class OrderSuccessPage extends StatelessWidget {
   const OrderSuccessPage({
     super.key,
@@ -61,13 +63,12 @@ class OrderSuccessPage extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context)
-                        .popUntil(
-                      (route) => route.isFirst,
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const PaymentPage()),
                     );
                   },
                   child: const Text(
-                    'Continue Shopping',
+                    'Pay Now',
                   ),
                 ),
               ),

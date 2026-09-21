@@ -32,6 +32,11 @@ class OrderRoutes {
       _getOrder,
     );
 
+    router.post(
+      '/<id|[0-9]+>/pay',
+      _payOrder,
+    );
+
     return router;
   }
 
@@ -60,16 +65,20 @@ class OrderRoutes {
         },
       );
     } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      final statusCode = message == 'You cannot buy a product from yourself.'
+          ? 409
+          : 500;
       print(
         'Create order error: $e',
       );
 
       return _jsonResponse(
-        500,
+        statusCode,
         {
           'error':
               'Failed to create order.',
-          'details': e.toString(),
+          'details': message,
         },
       );
     }
@@ -159,6 +168,24 @@ class OrderRoutes {
           'details': e.toString(),
         },
       );
+    }
+  }
+
+  Future<Response> _payOrder(
+    Request request,
+    String id,
+  ) async {
+    try {
+      await _repository.payOrder(
+        orderId: int.parse(id),
+        email: request.context['userEmail'] as String,
+      );
+
+      return _jsonResponse(200, {'message': 'Order paid successfully.'});
+    } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      final statusCode = message == 'Order not found.' ? 404 : 409;
+      return _jsonResponse(statusCode, {'message': message});
     }
   }
 
