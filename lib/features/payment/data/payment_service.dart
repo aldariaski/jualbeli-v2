@@ -39,7 +39,7 @@ class PaymentService {
       throw Exception(_message(response.body, response.statusCode));
     }
 
-    final data = jsonDecode(response.body);
+    final data = _parseJson(response.body);
     if (data is! Map || data['payments'] is! List) {
       throw Exception('Invalid payment history response.');
     }
@@ -72,17 +72,33 @@ class PaymentService {
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
-    final data = jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(_message(response.body, response.statusCode));
     }
+    final data = _parseJson(response.body);
     if (data is! Map<String, dynamic>) throw Exception('Invalid payment response.');
     return data;
   }
 
+  dynamic _parseJson(String body) {
+    if (body.trim().isEmpty) {
+      throw Exception('Payment service returned an empty response.');
+    }
+
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      final preview = body.trim().replaceAll(RegExp(r'\s+'), ' ');
+      throw Exception(
+        'Payment service returned an invalid response: '
+        '${preview.length > 120 ? '${preview.substring(0, 120)}...' : preview}',
+      );
+    }
+  }
+
   String _message(String body, int statusCode) {
     try {
-      final data = jsonDecode(body);
+      final data = _parseJson(body);
       if (data is Map && data['message'] != null) return data['message'].toString();
     } catch (_) {}
     return 'Payment failed ($statusCode).';
