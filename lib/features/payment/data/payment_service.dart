@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../auth/data/auth_storage.dart';
 import 'payment_record.dart';
+import 'top_up_record.dart';
 
 class PaymentService {
   PaymentService._();
@@ -16,8 +17,11 @@ class PaymentService {
   }
 
   Future<double> topUp(double amount) async {
-    if (amount <= 0) throw Exception('Top-up amount must be greater than zero.');
-    final response = await _authorizedPost('/payments/top-up', {'amount': amount});
+    if (amount <= 0)
+      throw Exception('Top-up amount must be greater than zero.');
+    final response = await _authorizedPost('/payments/top-up', {
+      'amount': amount,
+    });
     return (response['balance'] as num).toDouble();
   }
 
@@ -49,17 +53,46 @@ class PaymentService {
         .toList();
   }
 
+  Future<List<TopUpRecord>> getTopUpHistory() async {
+    final token = await _token();
+    final response = await http.get(
+      Uri.parse('$baseUrl/payments/top-ups'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_message(response.body, response.statusCode));
+    }
+
+    final data = _parseJson(response.body);
+    if (data is! Map || data['topUps'] is! List) {
+      throw Exception('Invalid top-up history response.');
+    }
+
+    return (data['topUps'] as List)
+        .map((item) => TopUpRecord.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> _authorizedGet(String path) async {
     final token = await _token();
-    final response = await http.get(Uri.parse('$baseUrl$path'), headers: {'Authorization': 'Bearer $token'});
+    final response = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
     return _decodeResponse(response);
   }
 
-  Future<Map<String, dynamic>> _authorizedPost(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _authorizedPost(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     final token = await _token();
     final response = await http.post(
       Uri.parse('$baseUrl$path'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
       body: jsonEncode(body),
     );
     return _decodeResponse(response);
@@ -67,7 +100,8 @@ class PaymentService {
 
   Future<String> _token() async {
     final token = await AuthStorage.getToken();
-    if (token == null || token.isEmpty) throw Exception('Authentication token not found.');
+    if (token == null || token.isEmpty)
+      throw Exception('Authentication token not found.');
     return token;
   }
 
@@ -76,7 +110,8 @@ class PaymentService {
       throw Exception(_message(response.body, response.statusCode));
     }
     final data = _parseJson(response.body);
-    if (data is! Map<String, dynamic>) throw Exception('Invalid payment response.');
+    if (data is! Map<String, dynamic>)
+      throw Exception('Invalid payment response.');
     return data;
   }
 
@@ -99,7 +134,8 @@ class PaymentService {
   String _message(String body, int statusCode) {
     try {
       final data = _parseJson(body);
-      if (data is Map && data['message'] != null) return data['message'].toString();
+      if (data is Map && data['message'] != null)
+        return data['message'].toString();
     } catch (_) {}
     return 'Payment failed ($statusCode).';
   }

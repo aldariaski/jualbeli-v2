@@ -14,6 +14,7 @@ class PaymentRoutes {
   Router get router {
     final router = Router();
     router.get('/balance', _balance);
+    router.get('/top-ups', _topUpHistory);
     router.post('/top-up', _topUp);
     router.post('/orders/<id|[0-9]+>/pay', _payOrder);
     return router;
@@ -21,10 +22,26 @@ class PaymentRoutes {
 
   Future<Response> _balance(Request request) async {
     try {
-      final balance = await _wallet.getBalance(request.context['userEmail'] as String);
+      final balance = await _wallet.getBalance(
+        request.context['userEmail'] as String,
+      );
       return _json(200, {'balance': balance});
     } catch (e) {
       return _json(500, {'message': e.toString()});
+    }
+  }
+
+  Future<Response> _topUpHistory(Request request) async {
+    try {
+      final topUps = await _wallet.getTopUpHistory(
+        request.context['userEmail'] as String,
+      );
+      return _json(200, {'topUps': topUps});
+    } catch (e) {
+      return _json(500, {
+        'message': 'Failed to load top-up history.',
+        'details': e.toString(),
+      });
     }
   }
 
@@ -32,14 +49,17 @@ class PaymentRoutes {
     try {
       final body = jsonDecode(await request.readAsString());
       final amount = body is Map ? (body['amount'] as num?)?.toDouble() : null;
-      if (amount == null || amount <= 0) return _json(400, {'message': 'A valid amount is required.'});
+      if (amount == null || amount <= 0)
+        return _json(400, {'message': 'A valid amount is required.'});
       final balance = await _wallet.topUp(
         email: request.context['userEmail'] as String,
         amount: amount,
       );
       return _json(200, {'balance': balance});
     } catch (e) {
-      return _json(400, {'message': e.toString().replaceFirst('Exception: ', '')});
+      return _json(400, {
+        'message': e.toString().replaceFirst('Exception: ', ''),
+      });
     }
   }
 
@@ -49,15 +69,20 @@ class PaymentRoutes {
         email: request.context['userEmail'] as String,
         orderId: int.parse(id),
       );
-      return _json(200, {'message': 'Order paid successfully.', 'balance': balance});
+      return _json(200, {
+        'message': 'Order paid successfully.',
+        'balance': balance,
+      });
     } catch (e) {
-      return _json(409, {'message': e.toString().replaceFirst('Exception: ', '')});
+      return _json(409, {
+        'message': e.toString().replaceFirst('Exception: ', ''),
+      });
     }
   }
 
   Response _json(int status, Map<String, dynamic> body) => Response(
-        status,
-        body: jsonEncode(body),
-        headers: {'content-type': 'application/json'},
-      );
+    status,
+    body: jsonEncode(body),
+    headers: {'content-type': 'application/json'},
+  );
 }

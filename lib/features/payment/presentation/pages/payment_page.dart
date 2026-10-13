@@ -6,6 +6,7 @@ import '../../../orders/data/order_service.dart';
 import '../../../product/data/price_formatter.dart';
 import '../../data/payment_service.dart';
 import '../../data/payment_record.dart';
+import '../../data/top_up_record.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key});
@@ -19,6 +20,7 @@ class _PaymentPageState extends State<PaymentPage> {
   double _balance = 0;
   List<Order> _orders = [];
   List<PaymentRecord> _history = [];
+  List<TopUpRecord> _topUpHistory = [];
   bool _loading = true;
   String? _error;
 
@@ -38,6 +40,7 @@ class _PaymentPageState extends State<PaymentPage> {
       final balance = await _service.getBalance();
       final orders = await OrderService.instance.getOrders('');
       final history = await _service.getPaymentHistory();
+      final topUpHistory = await _service.getTopUpHistory();
       final normalizedEmail = currentEmail.trim().toLowerCase();
       if (!mounted) return;
       setState(() {
@@ -47,6 +50,7 @@ class _PaymentPageState extends State<PaymentPage> {
               order.email.trim().toLowerCase() == normalizedEmail;
         }).toList();
         _history = history;
+        _topUpHistory = topUpHistory;
         _loading = false;
         _error = null;
       });
@@ -70,9 +74,16 @@ class _PaymentPageState extends State<PaymentPage> {
       final balance = await _service.topUp(amount);
       if (!mounted) return;
       setState(() => _balance = balance);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Wallet topped up.')));
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Wallet topped up.')));
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -81,9 +92,14 @@ class _PaymentPageState extends State<PaymentPage> {
       await _service.payOrder(order.id);
       if (!mounted) return;
       await _load();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order #${order.id} is paid.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Order #${order.id} is paid.')));
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -103,55 +119,122 @@ class _PaymentPageState extends State<PaymentPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? ListView(children: const [SizedBox(height: 280), Center(child: CircularProgressIndicator())])
+            ? ListView(
+                children: const [
+                  SizedBox(height: 280),
+                  Center(child: CircularProgressIndicator()),
+                ],
+              )
             : ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Wallet balance', style: TextStyle(fontSize: 16)),
-                        const SizedBox(height: 8),
-                        Text(formatPrice(_balance), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _topUp, icon: const Icon(Icons.add), label: const Text('Top up'))),
-                      ]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Wallet balance',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            formatPrice(_balance),
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _topUp,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Top up'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Orders awaiting payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Orders awaiting payment',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   if (_error != null) Text(_error!),
-                  if (_error == null && _orders.isEmpty) const Padding(padding: EdgeInsets.only(top: 24), child: Text('No orders need payment.')),
-                  ..._orders.map((order) => Card(
-                        child: ListTile(
-                          title: Text('Order #${order.id}'),
-                          subtitle: Text('Payment pending'),
-                          trailing: FilledButton(onPressed: () => _pay(order), child: Text(formatPrice(order.totalAmount))),
+                  if (_error == null && _orders.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 24),
+                      child: Text('No orders need payment.'),
+                    ),
+                  ..._orders.map(
+                    (order) => Card(
+                      child: ListTile(
+                        title: Text('Order #${order.id}'),
+                        subtitle: Text('Payment pending'),
+                        trailing: FilledButton(
+                          onPressed: () => _pay(order),
+                          child: Text(formatPrice(order.totalAmount)),
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 28),
-                  const Text('Payment history', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Payment history',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   if (_history.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 16),
                       child: Text('No completed payments yet.'),
                     ),
-                  ..._history.map((payment) => Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.check_circle_outline),
-                          title: Text('Order #${payment.orderId}'),
-                          subtitle: Text(
-                            '${payment.status} • ${payment.method}\n${_formatDate(payment.paidAt)}',
-                          ),
-                          trailing: Text(
-                            formatPrice(payment.amount),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                  ..._history.map(
+                    (payment) => Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.check_circle_outline),
+                        title: Text('Order #${payment.orderId}'),
+                        subtitle: Text(
+                          '${payment.status} • ${payment.method}\n${_formatDate(payment.paidAt)}',
                         ),
-                      )),
+                        trailing: Text(
+                          formatPrice(payment.amount),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Top-up history',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_topUpHistory.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Text('No top-ups yet.'),
+                    ),
+                  ..._topUpHistory.map(
+                    (topUp) => Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.add_circle_outline),
+                        title: Text('Wallet top-up #${topUp.id}'),
+                        subtitle: Text(
+                          '${topUp.status} • ${_formatDate(topUp.createdAt)}',
+                        ),
+                        trailing: Text(
+                          '+${formatPrice(topUp.amount)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -179,27 +262,61 @@ class _TopUpDialogState extends State<_TopUpDialog> {
     final amount = double.tryParse(_value) ?? 0;
     return AlertDialog(
       title: const Text('Top up wallet'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(formatPrice(amount), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        for (final row in const [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['C', '0', 'back']])
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: row.map((key) => IconButton(
-                onPressed: () {
-                  if (key == 'C') return setState(() => _value = '');
-                  if (key == 'back') return setState(() { if (_value.isNotEmpty) _value = _value.substring(0, _value.length - 1); });
-                  _add(key);
-                },
-                icon: key == 'back'
-                  ? const Icon(Icons.backspace_outlined)
-                  : key == 'C'
-                    ? const Icon(Icons.clear)
-                    : Text(key, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                tooltip: key == 'back' ? 'Delete' : key,
-              )).toList()),
-      ]),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatPrice(amount),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          for (final row in const [
+            ['1', '2', '3'],
+            ['4', '5', '6'],
+            ['7', '8', '9'],
+            ['C', '0', 'back'],
+          ])
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: row
+                  .map(
+                    (key) => IconButton(
+                      onPressed: () {
+                        if (key == 'C') return setState(() => _value = '');
+                        if (key == 'back')
+                          return setState(() {
+                            if (_value.isNotEmpty)
+                              _value = _value.substring(0, _value.length - 1);
+                          });
+                        _add(key);
+                      },
+                      icon: key == 'back'
+                          ? const Icon(Icons.backspace_outlined)
+                          : key == 'C'
+                          ? const Icon(Icons.clear)
+                          : Text(
+                              key,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                      tooltip: key == 'back' ? 'Delete' : key,
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: amount > 0 ? () => Navigator.pop(context, amount) : null, child: const Text('Add funds')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: amount > 0 ? () => Navigator.pop(context, amount) : null,
+          child: const Text('Add funds'),
+        ),
       ],
     );
   }
